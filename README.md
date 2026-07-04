@@ -58,6 +58,23 @@ Visibility model (enforced in RLS, verified by a 13-check matrix test):
 | Public (if `garden_is_public`) | owner's `is_public` plants | nothing |
 | Stranger | nothing | nothing |
 
+## Deployment
+
+Production runs on Vercel: **https://waterdem.vercel.app** (project
+`waterdem`, functions pinned to `sin1` next to the database via
+`vercel.json`). Source of truth is https://github.com/pmtchakanyuka-star/WaterDem.
+
+- Deploy: `npx vercel deploy --prod` (Git auto-deploys aren't wired up —
+  the Vercel account has no GitHub login connection yet; add one under
+  vercel.com → Account Settings → Login Connections, then
+  `npx vercel git connect` to deploy on every push).
+- Env vars (`DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`,
+  `SESSION_SECRET`) are set for Production and Preview. `OPENAI_API_KEY`
+  must be added (dashboard → Settings → Environment Variables, or
+  `npx vercel env add OPENAI_API_KEY production`) for AI identify/advice.
+- The login rate limiter is per-function-instance on serverless — fine for
+  an MVP; swap to Upstash Redis if it ever needs to be global.
+
 ## Notes
 
 - **AI provider:** OpenAI `gpt-4o` (user choice; the original brief specified
