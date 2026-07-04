@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withUser } from "@/lib/db";
 import { getSession } from "@/lib/session";
-import type { Plant } from "@/lib/types";
+import { normalizePlant } from "@/lib/normalize";
 
 export const runtime = "nodejs";
 
@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
         ${p.nutrients}, ${p.weekly_tips}, ${p.fun_facts}, now()
       )
       returning *`;
-    return rows[0] as unknown as Plant;
+    return normalizePlant(rows[0]);
   });
 
   return NextResponse.json(plant, { status: 201 });

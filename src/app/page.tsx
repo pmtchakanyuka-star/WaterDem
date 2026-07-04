@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/session";
 import { withUser } from "@/lib/db";
 import GardenClient from "@/components/garden/GardenClient";
-import type { Plant } from "@/lib/types";
+import { normalizePlant } from "@/lib/normalize";
 
 export const dynamic = "force-dynamic";
 
@@ -15,13 +15,10 @@ export default async function GardenPage() {
       select * from plants
       where owner_id = ${session.userId}
       order by created_at desc`;
-    return rows as unknown as Plant[];
+    return rows.map(normalizePlant);
   });
 
   return (
-    <GardenClient
-      nickname={session.nickname}
-      initialPlants={JSON.parse(JSON.stringify(plants))}
-    />
+    <GardenClient nickname={session.nickname} initialPlants={plants} />
   );
 }

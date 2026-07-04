@@ -3,7 +3,8 @@ import { Leaf, Lock, Sprout } from "lucide-react";
 import { getSession } from "@/lib/session";
 import { withUser } from "@/lib/db";
 import PublicGardenGrid from "@/components/garden/PublicGardenGrid";
-import type { Plant, UserPublic } from "@/lib/types";
+import { normalizePlant } from "@/lib/normalize";
+import type { UserPublic } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +34,7 @@ export default async function PublicGardenPage({
       select * from plants
       where owner_id = ${owner.id}
       order by created_at desc`;
-    return { owner, plants: plants as unknown as Plant[] };
+    return { owner, plants: plants.map(normalizePlant) };
   });
 
   const isOwner = !!session && !!result && session.userId === result.owner.id;
@@ -87,7 +88,7 @@ export default async function PublicGardenPage({
           </div>
         </div>
       ) : (
-        <PublicGardenGrid plants={JSON.parse(JSON.stringify(result.plants))} />
+        <PublicGardenGrid plants={result.plants} />
       )}
     </main>
   );

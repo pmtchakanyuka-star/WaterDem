@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withUser } from "@/lib/db";
 import { getSession } from "@/lib/session";
-import type { Plant } from "@/lib/types";
+import { normalizePlant } from "@/lib/normalize";
 
 export const runtime = "nodejs";
 
@@ -57,7 +57,7 @@ export async function PATCH(
       update plants set ${tx(updates)}
       where id = ${id}
       returning *`;
-    return rows[0] as unknown as Plant | undefined;
+    return rows[0] ? normalizePlant(rows[0]) : undefined;
   });
 
   if (!plant) {

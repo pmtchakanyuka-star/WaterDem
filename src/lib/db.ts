@@ -15,7 +15,9 @@ declare global {
 
 function createClient() {
   const url = process.env.DATABASE_URL;
-  if (!url) throw new Error("DATABASE_URL is not set — see .env.local");
+  if (!url || !url.startsWith("postgres")) {
+    throw new Error("DATABASE_URL is not set — see .env.local");
+  }
   return postgres(url, {
     // Transaction-mode pooling (PgBouncer) — no prepared statements.
     prepare: false,
@@ -25,8 +27,14 @@ function createClient() {
   });
 }
 
-const sql = globalThis.__waterdem_sql ?? createClient();
-if (process.env.NODE_ENV !== "production") globalThis.__waterdem_sql = sql;
+// Lazy: don't touch DATABASE_URL at import time so `next build` (which
+// evaluates route modules without env secrets) doesn't crash.
+function getSql(): ReturnType<typeof postgres> {
+  if (!globalThis.__waterdem_sql) {
+    globalThis.__waterdem_sql = createClient();
+  }
+  return globalThis.__waterdem_sql;
+}
 
 export type Tx = postgres.TransactionSql<Record<string, unknown>>;
 
@@ -39,10 +47,8 @@ export async function withUser<T>(
   userId: string | null,
   fn: (tx: Tx) => Promise<T>,
 ): Promise<T> {
-  return sql.begin(async (tx) => {
+  return getSql().begin(async (tx) => {
     await tx`select set_config('app.current_user_id', ${userId ?? ""}, true)`;
     return fn(tx);
   }) as Promise<T>;
 }
-
-export default sql;

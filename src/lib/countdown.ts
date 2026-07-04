@@ -16,12 +16,15 @@ export type Countdown = {
 };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+const MINUTE_MS = 60 * 1000;
 
 export function computeCountdown(
   lastWatered: string | null,
   waterFreqDays: number,
   weatherFactor = 1,
-  now = Date.now(),
+  // Quantized to the minute so server render and client hydration agree
+  // (sub-minute drift is invisible in a multi-day countdown).
+  now = Math.floor(Date.now() / MINUTE_MS) * MINUTE_MS,
 ): Countdown {
   const intervalMs = Math.max(1, waterFreqDays) * weatherFactor * DAY_MS;
 

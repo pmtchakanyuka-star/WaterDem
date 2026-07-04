@@ -34,6 +34,8 @@ export default function WaterArc({
 }) {
   const reduceMotion = useReducedMotion();
   const cd = computeCountdown(lastWatered, waterFreqDays, weatherFactor);
+  // One-decimal precision: keeps SSR and hydration byte-identical.
+  const pct = Math.round(cd.remainingRatio * 1000) / 10;
 
   return (
     <div className="flex w-full flex-col gap-1.5">
@@ -69,7 +71,7 @@ export default function WaterArc({
           className="h-full"
           style={{ background: BAR[cd.status] }}
           initial={false}
-          animate={{ width: `${cd.remainingRatio * 100}%` }}
+          animate={{ width: `${pct}%` }}
           transition={
             reduceMotion ? { duration: 0 } : { duration: 0.35, ease: "easeOut" }
           }

@@ -1,36 +1,70 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# WaterDem
 
-## Getting Started
+A collaborative houseplant care app: snap a photo, the AI botanist identifies
+the species and writes a care plan, and each plant shows a live countdown to
+its next watering. Local weather nudges the advice — hot or dry days mean
+water sooner. Open your garden to the public or invite friends by handle to
+view (read-only) the plants you choose to share.
 
-First, run the development server:
+Built with Next.js 15 (App Router), Tailwind CSS v4, Supabase (Postgres +
+Storage + Row Level Security), OpenAI (gpt-4o vision), open-meteo, Lucide
+icons and Framer Motion. Design: botanical tactile glassmorphism over a
+living forest gradient.
+
+## Running locally
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev        # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+`.env.local` holds all secrets (never committed):
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Variable | What it is |
+| --- | --- |
+| `DATABASE_URL` | Postgres pooler URL connecting as the **`waterdem_app`** role (RLS-enforced) |
+| `SUPABASE_URL` | The Supabase project URL |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service key, server-only, used for Storage uploads |
+| `SESSION_SECRET` | HS256 signing secret for the session cookie |
+| `OPENAI_API_KEY` | **Paste your key here** — AI identify/advice returns a friendly 503 until set; manual plant entry always works |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Database
 
-## Learn More
+The live project is `WaterDem` (`vbazkronykqwdffmydpd`, region `ap-southeast-1`).
+Schema and policies live in `supabase/migrations/`:
 
-To learn more about Next.js, take a look at the following resources:
+- `0001_init.sql` — tables (`users`, `plants`, `water_logs`, `garden_shares`),
+  indexes, and RLS policies. Identity comes from a per-transaction
+  `app.current_user_id` setting (custom nickname/password auth — **not**
+  Supabase Auth). All tables use `FORCE ROW LEVEL SECURITY`.
+- `0002_app_role.sql` — the `waterdem_app` role. Supabase's `postgres` role
+  has `BYPASSRLS`, so the app must connect as this role for the policies to
+  bind. The migration creates it `NOLOGIN`; on a fresh environment enable it
+  out-of-band (never commit the password):
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+  ```sql
+  alter role waterdem_app login password '<generated>';
+  ```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Apply migrations with `npx supabase db push` (project is linked). Storage
+uses a public `plant-photos` bucket (5 MB limit, image mime types only).
 
-## Deploy on Vercel
+Visibility model (enforced in RLS, verified by a 13-check matrix test):
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+| Actor | Sees | Edits |
+| --- | --- | --- |
+| Owner | all their plants | everything |
+| Invited viewer | owner's `is_public` plants | nothing |
+| Public (if `garden_is_public`) | owner's `is_public` plants | nothing |
+| Stranger | nothing | nothing |
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Notes
+
+- **AI provider:** OpenAI `gpt-4o` (user choice; the original brief specified
+  Anthropic). Everything provider-specific is isolated in `src/lib/ai.ts`.
+- **Weather:** open-meteo, keyless. On networks that block it (some corporate
+  firewalls) the app degrades gracefully to non-weather-adjusted countdowns.
+- **Fonts:** Fraunces + Inter are self-hosted from npm (`@fontsource-variable/*`)
+  because Google Fonts was unreachable at build time on the original machine.
+- `/dev/glass` is an internal showcase page for auditing the glass design
+  system — not linked from the app.
