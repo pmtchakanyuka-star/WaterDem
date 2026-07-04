@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
+import GlassIconLink from "@/components/glass/GlassIconLink";
 import {
   ArrowLeft,
   Check,
@@ -182,11 +182,9 @@ function SettingsInner({
   return (
     <main className="mx-auto flex max-w-2xl flex-col gap-6 px-5 py-8 sm:px-8">
       <header className="flex items-center gap-3">
-        <Link href="/" aria-label="Back to your garden">
-          <GlassButton variant="icon" aria-label="Back to your garden">
-            <ArrowLeft className="size-4" aria-hidden />
-          </GlassButton>
-        </Link>
+        <GlassIconLink href="/" label="Back to your garden">
+          <ArrowLeft className="size-4" aria-hidden />
+        </GlassIconLink>
         <h1 className="font-display text-3xl text-leaf-100">Settings</h1>
       </header>
 

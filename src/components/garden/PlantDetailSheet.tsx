@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import {
   CalendarDays,
   Droplet,
@@ -19,6 +20,7 @@ import Sheet from "@/components/garden/Sheet";
 import GlassButton from "@/components/glass/GlassButton";
 import GlassInput from "@/components/glass/GlassInput";
 import PlantIcon from "@/components/garden/PlantIcon";
+import PetSafetyBadge from "@/components/garden/PetSafetyBadge";
 import WaterArc from "@/components/garden/WaterArc";
 import { useToast } from "@/components/Toast";
 import type { Advice, Plant, Weather } from "@/lib/types";
@@ -224,6 +226,16 @@ export default function PlantDetailSheet({
                 also known as {plant.common_name}
               </p>
             )}
+            {plant.pet_safety && (
+              <div className="mt-2">
+                <PetSafetyBadge safety={plant.pet_safety} size="sm" />
+                {plant.pet_safety_note && (
+                  <p className="mt-1 text-xs text-leaf-mut">
+                    {plant.pet_safety_note}
+                  </p>
+                )}
+              </div>
+            )}
             <div className="mt-3 max-w-sm">
               <WaterArc
                 lastWatered={plant.last_watered}
@@ -335,14 +347,27 @@ export default function PlantDetailSheet({
 
         {plant.nutrients.length > 0 && (
           <div className="rounded-xl border border-glass-edge bg-[rgba(255,255,255,0.04)] p-4">
-            <p className="mb-2 flex items-center gap-2 text-sm font-medium text-leaf-100">
-              <FlaskConical className="size-4 text-sage" aria-hidden /> Feeding
-            </p>
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <p className="flex items-center gap-2 text-sm font-medium text-leaf-100">
+                <FlaskConical className="size-4 text-sage" aria-hidden /> Feeding
+              </p>
+              <Link
+                href="/guide#nutrition"
+                className="text-xs text-sage hover:underline"
+              >
+                Why feed?
+              </Link>
+            </div>
             <ul className="flex flex-col gap-1.5 text-sm text-leaf-2nd">
               {plant.nutrients.map((n, i) => (
                 <li key={i}>{n}</li>
               ))}
             </ul>
+            <p className="mt-2.5 border-t border-[rgba(255,255,255,0.07)] pt-2.5 text-xs text-leaf-mut">
+              Feed at half strength monthly in spring and summer; ease off in
+              winter. Skip feeding a newly repotted, stressed, or bone-dry
+              plant — concentrated fertiliser burns roots.
+            </p>
           </div>
         )}
 

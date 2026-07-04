@@ -77,13 +77,21 @@ export async function DELETE(
     return NextResponse.json({ error: "Unknown plant." }, { status: 404 });
   }
 
-  const lastWatered = await withUser(session.userId, async (tx) => {
+  const result = await withUser(session.userId, async (tx) => {
+    // Ownership gate: a viewer can SELECT a public plant's logs, but only the
+    // owner may undo. Confirm ownership before touching anything.
+    const owned = await tx`
+      select 1 from plants
+      where id = ${id} and owner_id = ${session.userId}`;
+    if (owned.length === 0) return { notOwner: true as const };
+
     const latest = await tx`
       select id from water_logs
       where plant_id = ${id}
       order by watered_at desc
       limit 1`;
-    if (latest.length === 0) return null;
+    if (latest.length === 0) return { empty: true as const };
+
     await tx`delete from water_logs where id = ${(latest[0] as { id: string }).id}`;
     const prev = await tx`
       select watered_at from water_logs
@@ -97,8 +105,11 @@ export async function DELETE(
     return { prevAt };
   }).catch(() => null);
 
-  if (!lastWatered) {
+  if (!result || "notOwner" in result) {
+    return NextResponse.json({ error: "Unknown plant." }, { status: 404 });
+  }
+  if ("empty" in result) {
     return NextResponse.json({ error: "Nothing to undo." }, { status: 404 });
   }
-  return NextResponse.json({ ok: true, lastWatered: lastWatered.prevAt });
+  return NextResponse.json({ ok: true, lastWatered: result.prevAt });
 }

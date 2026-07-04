@@ -27,22 +27,29 @@ export async function geocodeCity(query: string): Promise<GeocodeHit[]> {
   const data = (await res.json()) as {
     results?: {
       name: string;
-      country_code: string;
-      country: string;
+      country_code?: string;
+      country?: string;
       admin1?: string;
       latitude: number;
       longitude: number;
     }[];
   };
 
-  return (data.results ?? []).map((r) => ({
-    name: r.name,
-    country: r.country,
-    admin1: r.admin1,
-    latitude: r.latitude,
-    longitude: r.longitude,
-    label: `${r.name}, ${r.country_code.toUpperCase()}`,
-  }));
+  // Some hits (continents, oceans, disputed areas) lack country_code/country —
+  // don't assume the fields exist, and build a sensible label regardless.
+  return (data.results ?? [])
+    .filter((r) => typeof r.latitude === "number" && typeof r.longitude === "number")
+    .map((r) => {
+      const code = r.country_code?.toUpperCase();
+      return {
+        name: r.name,
+        country: r.country ?? "",
+        admin1: r.admin1,
+        latitude: r.latitude,
+        longitude: r.longitude,
+        label: code ? `${r.name}, ${code}` : r.name,
+      };
+    });
 }
 
 export async function currentWeather(

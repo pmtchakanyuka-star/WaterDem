@@ -3,25 +3,38 @@ import bcrypt from "bcryptjs";
 import { withUser } from "@/lib/db";
 import { createSession } from "@/lib/session";
 import { lockedForSeconds, recordFailure, recordSuccess } from "@/lib/ratelimit";
+import { readJsonObject } from "@/lib/http";
 
 export const runtime = "nodejs";
 
+// A bcrypt hash of a throwaway string. We always run one bcrypt.compare —
+// even when the nickname is unknown — so response time doesn't reveal
+// whether an account exists (user-enumeration defense).
+const DUMMY_HASH = "$2b$10$XdXnEr9tFgLNxD5WHsxUBeA.tODv31/hkGcNzyb8ve6eH.4uzT6A6";
+
 function clientIp(req: NextRequest): string {
-  return (
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "local"
-  );
+  // Prefer platform-provided real-IP headers (Vercel sets both), which the
+  // client cannot forge. Fall back to the RIGHTMOST x-forwarded-for entry —
+  // the hop our infrastructure appended — never the client-supplied left.
+  const realIp =
+    req.headers.get("x-real-ip") ??
+    req.headers.get("x-vercel-forwarded-for");
+  if (realIp) return realIp.trim();
+  const xff = req.headers.get("x-forwarded-for");
+  if (xff) {
+    const parts = xff.split(",").map((s) => s.trim()).filter(Boolean);
+    if (parts.length) return parts[parts.length - 1];
+  }
+  return "local";
 }
 
 export async function POST(req: NextRequest) {
-  let body: { nickname?: string; password?: string };
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid request." }, { status: 400 });
-  }
+  const parsed = await readJsonObject(req);
+  if (!parsed.ok) return parsed.res;
+  const body = parsed.body as { nickname?: unknown; password?: unknown };
 
-  const nickname = (body.nickname ?? "").trim();
-  const password = body.password ?? "";
+  const nickname = typeof body.nickname === "string" ? body.nickname.trim() : "";
+  const password = typeof body.password === "string" ? body.password : "";
   const ip = clientIp(req);
 
   if (!nickname || !password) {
@@ -51,7 +64,12 @@ export async function POST(req: NextRequest) {
       | undefined;
   });
 
-  const ok = user && (await bcrypt.compare(password, user.password_hash));
+  // Always compare against a hash (real or dummy) so timing is uniform.
+  const passwordOk = await bcrypt.compare(
+    password,
+    user?.password_hash ?? DUMMY_HASH,
+  );
+  const ok = !!user && passwordOk;
   if (!ok) {
     recordFailure(nickname, ip);
     return NextResponse.json(

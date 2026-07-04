@@ -32,9 +32,27 @@ export const PLANT_ICON_KEYS = [
   "clover",
 ] as const;
 
-// Houseplant knowledge system prompt (brief §8) — grounds identification so
-// advice is specific rather than generic.
-const BOTANIST_SYSTEM_PROMPT = `You are an expert botanist and houseplant specialist. Watering science: over/under-watering causes most houseplant deaths; frequency depends on species, pot size, season, light, temperature. Hot weather (>25°C) and low humidity (<40%) both raise watering needs. Most tropicals want the top 2cm of soil dry before watering; succulents/cacti fully dry. Light: low = >4ft from window; medium = 2–4ft bright indirect; bright = within 2ft/direct. Humidity: tropicals (Monstera, Peace Lily, Calathea, ferns) 50–70%; desert plants (cacti, succulents, snake plants) 20–40%; moderate (pothos, ZZ, philodendron) 40–60%. Nutrients: balanced NPK 20-20-20 in spring/summer every 4 weeks, reduce in winter; flowering plants need more phosphorus; cacti need low-nitrogen feed. Deficiency signs: yellowing = nitrogen, purple tinge = phosphorus, brown edges = potassium. Know the common species and their specifics (Monstera deliciosa, Spathiphyllum, Sansevieria, Epipremnum/pothos, Ficus lyrata, Aloe, ZZ, Calathea, Philodendron, Dracaena, Chlorophytum/spider plant, Tradescantia).`;
+// Houseplant knowledge system prompt — grounds identification so advice is
+// specific rather than generic. Facts below are drawn from university
+// extension services (Iowa State, Penn State, Clemson, UMD, MSU, UNH,
+// Nebraska), the RHS, and ASPCA toxicity data.
+const BOTANIST_SYSTEM_PROMPT = `You are an expert botanist and houseplant specialist. Ground every care plan in the following horticultural knowledge and set fields to match it.
+
+WATERING: Overwatering (root rot) kills more houseplants than underwatering — root rot's first sign is wilting lower leaves, easily mistaken for thirst, so always judge by soil moisture, not a calendar. Finger test: water when the top ~2cm (tropicals) is dry; succulents/cacti want the pot nearly fully dry. Plants use far less water in winter (dormancy) — schedules should lean longer, not shorter, in the cold months. waterFreqDays is the interval under normal indoor conditions in the growing season.
+
+SPECIES INTERVALS (indoor, growing season) — respect these, generic weekly watering is wrong for succulent-type plants: Snake plant (Sansevieria) 14-21 days; ZZ plant (Zamioculcas) 14-21 days — both store water and rot readily if watered weekly. Aloe/succulents ~14 days. Monstera, Pothos, Philodendron ~7-10 days. Peace lily (Spathiphyllum) ~7 days and it droops dramatically when thirsty then recovers within hours — mention this as a helpful cue in weeklyTips. Fiddle-leaf fig (Ficus lyrata) ~7-10 days, dislikes being moved.
+
+WATER QUALITY: Calathea, Dracaena, Spider plant and other monocots are sensitive to fluoride/chlorine in tap water, which causes brown, crispy leaf tips. For these, recommend distilled or rainwater in weatherNote or soilCheck (letting tap water sit overnight does NOT remove fluoride).
+
+LIGHT: low = >4ft from a window / little natural light; medium = 2-4ft, bright indirect (bright enough to cast a soft shadow, no direct sun); bright = within 2ft or direct sun. Leggy, stretching, pale growth = too little light; bleached/brown papery patches = too much.
+
+HUMIDITY: Most tropicals want ~40-60% (Monstera, Peace Lily, Calathea, ferns lean high, 50-70%). Desert plants (cacti, succulents, snake plants) want dry air, 20-40%. Misting does NOT meaningfully raise humidity — recommend grouping plants or a pebble tray instead. Brown crispy tips on a tropical often mean dry air, not thirst.
+
+NUTRIENTS: Nitrogen (N) drives green leafy growth (deficiency = pale/yellow oldest leaves first). Phosphorus (P) supports roots and flowers (deficiency = stunted, purplish older leaves). Potassium (K) is overall hardiness and flowering (deficiency = browning leaf edges on mature leaves). Feed a balanced fertilizer at HALF label strength roughly monthly in spring/summer only; stop in winter. Do NOT feed newly repotted (wait ~months), stressed, or bone-dry plants — concentrated fertilizer salts burn roots. Overfeeding shows as a white crust on the soil and brown leaf tips; the fix is flushing the pot with water. nutrients[] should give 2-4 short, plain feeding pointers reflecting this.
+
+PET SAFETY (ASPCA): set petSafety to 'toxic', 'mild', or 'safe' (to cats and dogs), with a one-line petSafetyNote. Known: TOXIC — Monstera, Pothos, Philodendron, Peace lily, Aloe, Snake plant, Dracaena/corn plant (all cause GI upset or mouth-burning oxalates; note peace lily is NOT a deadly true lily). MILD — ZZ plant, Fiddle-leaf fig, Tradescantia (Tradescantia mainly a contact skin rash). SAFE — Calathea, Spider plant. If unsure of a species, say so in the note and use your best assessment.
+
+Know the common species and their specifics (Monstera deliciosa, Spathiphyllum, Sansevieria, Epipremnum/pothos, Ficus lyrata, Aloe, ZZ, Calathea, Philodendron, Dracaena, Chlorophytum/spider plant, Tradescantia).`;
 
 const IDENTIFY_INSTRUCTIONS = `Identify the houseplant from the photo and/or the user's hint, then produce a care profile.
 
@@ -53,7 +71,9 @@ Respond with ONLY a JSON object of this exact shape:
   "nutrients": string[],     // 2-4 short feeding pointers
   "weeklyTips": string[],    // 3-5 short, species-specific weekly care tips
   "funFacts": string[],      // 2-3 delightful facts about the species
-  "weatherNote": string      // one sentence: how heat/dry air changes this species' watering needs
+  "weatherNote": string,     // one sentence: how heat/dry air changes this species' watering needs
+  "petSafety": "toxic" | "mild" | "safe",  // to cats and dogs (ASPCA)
+  "petSafetyNote": string    // one short sentence on the pet risk (or safety)
 }
 
 If you cannot identify a plant at all, respond with {"error": "unidentifiable"}.`;
@@ -186,6 +206,13 @@ export async function identifyPlant(input: {
     weeklyTips: strings(raw.weeklyTips),
     funFacts: strings(raw.funFacts),
     weatherNote: typeof raw.weatherNote === "string" ? raw.weatherNote : "",
+    petSafety: (["toxic", "mild", "safe"] as const).includes(
+      raw.petSafety as "toxic" | "mild" | "safe",
+    )
+      ? (raw.petSafety as "toxic" | "mild" | "safe")
+      : null,
+    petSafetyNote:
+      typeof raw.petSafetyNote === "string" ? raw.petSafetyNote : "",
   };
 }
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { AiNotConfiguredError, adviseForPlant } from "@/lib/ai";
 import { getSession } from "@/lib/session";
+import { readJsonObject } from "@/lib/http";
 import type { Plant, Weather } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -12,12 +13,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   }
 
-  let body: { plant?: Partial<Plant>; weather?: Weather | null };
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid request." }, { status: 400 });
-  }
+  const parsed = await readJsonObject(req);
+  if (!parsed.ok) return parsed.res;
+  const body = parsed.body as { plant?: Partial<Plant>; weather?: Weather | null };
 
   const p = body.plant;
   if (!p || typeof p.name !== "string") {

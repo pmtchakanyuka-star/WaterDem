@@ -45,8 +45,11 @@ export function computeCountdown(
   if (remainingMs <= 0) {
     const over = Math.floor(-remainingMs / DAY_MS);
     label = over < 1 ? "due today" : `${over}d overdue`;
-  } else if (daysLeft <= 0) {
-    label = "due today";
+  } else if (remainingMs < DAY_MS) {
+    // Less than a day left — "1d left" would overstate it. Show hours, or
+    // "due soon" once inside the final hour.
+    const hours = Math.floor(remainingMs / (60 * 60 * 1000));
+    label = hours < 1 ? "due soon" : `${hours}h left`;
   } else {
     label = `${daysLeft}d left`;
   }

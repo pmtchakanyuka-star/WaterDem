@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { AiNotConfiguredError, identifyPlant } from "@/lib/ai";
 import { uploadPlantPhoto } from "@/lib/storage";
 import { getSession } from "@/lib/session";
+import { readJsonObject } from "@/lib/http";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -12,16 +13,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   }
 
-  let body: {
-    imageBase64?: string;
-    hint?: string;
-    details?: { species?: string; spotLight?: string };
+  const parsed = await readJsonObject(req);
+  if (!parsed.ok) return parsed.res;
+  const body = parsed.body as {
+    imageBase64?: unknown;
+    hint?: unknown;
+    details?: { species?: unknown; spotLight?: unknown };
   };
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid request." }, { status: 400 });
-  }
 
   const species =
     typeof body.details?.species === "string"

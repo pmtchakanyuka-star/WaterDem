@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { withUser } from "@/lib/db";
 import { createSession } from "@/lib/session";
+import { readJsonObject } from "@/lib/http";
 
 export const runtime = "nodejs";
 
@@ -9,7 +10,8 @@ const NICKNAME_RE = /^[a-zA-Z0-9_]{3,20}$/;
 
 /** Live nickname availability check for the signup form (Nielsen #5). */
 export async function GET(req: NextRequest) {
-  const nickname = req.nextUrl.searchParams.get("nickname") ?? "";
+  // Trim to match the POST validator (which trims before checking).
+  const nickname = (req.nextUrl.searchParams.get("nickname") ?? "").trim();
   if (!NICKNAME_RE.test(nickname)) {
     return NextResponse.json({ available: false, invalid: true });
   }
@@ -22,15 +24,12 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  let body: { nickname?: string; password?: string };
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid request." }, { status: 400 });
-  }
+  const parsed = await readJsonObject(req);
+  if (!parsed.ok) return parsed.res;
+  const body = parsed.body as { nickname?: unknown; password?: unknown };
 
-  const nickname = (body.nickname ?? "").trim();
-  const password = body.password ?? "";
+  const nickname = typeof body.nickname === "string" ? body.nickname.trim() : "";
+  const password = typeof body.password === "string" ? body.password : "";
 
   if (!NICKNAME_RE.test(nickname)) {
     return NextResponse.json(
@@ -38,7 +37,7 @@ export async function POST(req: NextRequest) {
       { status: 400 },
     );
   }
-  if (password.length < 8) {
+  if (password.length < 8 || password.length > 200 || !password.trim()) {
     return NextResponse.json(
       { error: "Passwords need at least 8 characters." },
       { status: 400 },

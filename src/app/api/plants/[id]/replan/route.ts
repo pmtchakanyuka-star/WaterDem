@@ -65,7 +65,9 @@ export async function POST(
           weather_note = ${profile.weatherNote},
           nutrients = ${JSON.stringify(profile.nutrients)},
           weekly_tips = ${JSON.stringify(profile.weeklyTips)},
-          fun_facts = ${JSON.stringify(profile.funFacts)}
+          fun_facts = ${JSON.stringify(profile.funFacts)},
+          pet_safety = ${profile.petSafety},
+          pet_safety_note = ${profile.petSafetyNote || null}
         where id = ${id}
         returning *`;
       return rows[0] ? normalizePlant(rows[0]) : undefined;

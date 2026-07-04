@@ -7,7 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { CheckCircle2, CircleAlert, Info } from "lucide-react";
 
 /**
@@ -51,6 +51,7 @@ const TINTS: Record<ToastKind, string> = {
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const nextId = useRef(1);
+  const reduceMotion = useReducedMotion();
 
   const dismiss = useCallback((id: number) => {
     setToasts((t) => t.filter((x) => x.id !== id));
@@ -80,10 +81,10 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               <motion.div
                 key={t.id}
                 layout
-                initial={{ opacity: 0, y: 16, scale: 0.96 }}
+                initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 16, scale: 0.96 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 8, scale: 0.96 }}
-                transition={{ duration: 0.22, ease: "easeOut" }}
+                exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 8, scale: 0.96 }}
+                transition={{ duration: reduceMotion ? 0 : 0.22, ease: "easeOut" }}
                 className="glass pointer-events-auto flex items-center gap-3 px-4 py-2.5 text-sm text-leaf-100"
               >
                 <Icon className={`size-4 shrink-0 ${TINTS[t.kind]}`} aria-hidden />

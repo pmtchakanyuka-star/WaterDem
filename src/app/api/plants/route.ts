@@ -2,12 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { withUser } from "@/lib/db";
 import { getSession } from "@/lib/session";
 import { normalizePlant } from "@/lib/normalize";
+import { readJsonObject } from "@/lib/http";
+import { PLANT_ICON_KEYS } from "@/lib/ai";
 
 export const runtime = "nodejs";
 
 const CARE = ["easy", "moderate", "expert"];
 const LIGHT = ["low", "medium", "bright"];
 const HUMIDITY = ["low", "medium", "high"];
+const PET = ["toxic", "mild", "safe"];
+const ICON_KEYS = new Set<string>(PLANT_ICON_KEYS);
 
 function sanitize(body: Record<string, unknown>) {
   const str = (v: unknown, max = 500) =>
@@ -16,15 +20,23 @@ function sanitize(body: Record<string, unknown>) {
     JSON.stringify(
       Array.isArray(v) ? v.filter((s) => typeof s === "string").slice(0, 8) : [],
     );
-  const freq = Math.round(Number(body.water_freq_days));
+  // Only a genuine positive number sets the schedule; junk (null, "lots",
+  // undefined) falls back to 7 rather than clamping Number(null)=0 up to 1.
+  const rawFreq = body.water_freq_days;
+  const water_freq_days =
+    typeof rawFreq === "number" && Number.isFinite(rawFreq)
+      ? Math.min(90, Math.max(1, Math.round(rawFreq)))
+      : 7;
+  const iconKey = str(body.icon_key, 40);
+  const imageUrl = str(body.image_url, 500);
 
   return {
     name: str(body.name, 60),
     species: str(body.species, 120),
     common_name: str(body.common_name, 120),
-    image_url: str(body.image_url, 500),
-    icon_key: str(body.icon_key, 40) ?? "leaf",
-    water_freq_days: Number.isFinite(freq) ? Math.min(90, Math.max(1, freq)) : 7,
+    image_url: imageUrl && /^https?:\/\//i.test(imageUrl) ? imageUrl : null,
+    icon_key: iconKey && ICON_KEYS.has(iconKey) ? iconKey : "leaf",
+    water_freq_days,
     care_level: CARE.includes(body.care_level as string) ? (body.care_level as string) : null,
     light: LIGHT.includes(body.light as string) ? (body.light as string) : null,
     humidity: HUMIDITY.includes(body.humidity as string) ? (body.humidity as string) : null,
@@ -33,6 +45,8 @@ function sanitize(body: Record<string, unknown>) {
     nutrients: arr(body.nutrients),
     weekly_tips: arr(body.weekly_tips),
     fun_facts: arr(body.fun_facts),
+    pet_safety: PET.includes(body.pet_safety as string) ? (body.pet_safety as string) : null,
+    pet_safety_note: str(body.pet_safety_note, 200),
   };
 }
 
@@ -42,14 +56,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   }
 
-  let body: Record<string, unknown>;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid request." }, { status: 400 });
-  }
+  const parsed = await readJsonObject(req);
+  if (!parsed.ok) return parsed.res;
 
-  const p = sanitize(body);
+  const p = sanitize(parsed.body);
   if (!p.name) {
     return NextResponse.json(
       { error: "Give your plant a name." },
@@ -62,12 +72,14 @@ export async function POST(req: NextRequest) {
       insert into plants (
         owner_id, name, species, common_name, image_url, icon_key,
         water_freq_days, care_level, light, humidity, soil_check,
-        weather_note, nutrients, weekly_tips, fun_facts, last_watered
+        weather_note, nutrients, weekly_tips, fun_facts,
+        pet_safety, pet_safety_note, last_watered
       ) values (
         ${session.userId}, ${p.name}, ${p.species}, ${p.common_name},
         ${p.image_url}, ${p.icon_key}, ${p.water_freq_days}, ${p.care_level},
         ${p.light}, ${p.humidity}, ${p.soil_check}, ${p.weather_note},
-        ${p.nutrients}, ${p.weekly_tips}, ${p.fun_facts}, now()
+        ${p.nutrients}, ${p.weekly_tips}, ${p.fun_facts},
+        ${p.pet_safety}, ${p.pet_safety_note}, now()
       )
       returning *`;
     return normalizePlant(rows[0]);

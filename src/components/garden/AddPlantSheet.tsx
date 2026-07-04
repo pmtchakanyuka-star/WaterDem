@@ -178,6 +178,8 @@ export default function AddPlantSheet({
           nutrients: profile.nutrients,
           weekly_tips: profile.weeklyTips,
           fun_facts: profile.funFacts,
+          pet_safety: profile.petSafety,
+          pet_safety_note: profile.petSafetyNote,
         }),
       });
       const data = await res.json();

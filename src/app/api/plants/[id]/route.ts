@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { withUser } from "@/lib/db";
 import { getSession } from "@/lib/session";
 import { normalizePlant } from "@/lib/normalize";
+import { readJsonObject } from "@/lib/http";
 
 export const runtime = "nodejs";
 
@@ -35,12 +36,9 @@ export async function PATCH(
     return NextResponse.json({ error: "Unknown plant." }, { status: 404 });
   }
 
-  let body: Record<string, unknown>;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid request." }, { status: 400 });
-  }
+  const parsed = await readJsonObject(req);
+  if (!parsed.ok) return parsed.res;
+  const body = parsed.body;
 
   const updates: Record<string, unknown> = {};
   for (const [field, validate] of Object.entries(EDITABLE)) {

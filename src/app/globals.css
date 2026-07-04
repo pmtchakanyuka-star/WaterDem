@@ -15,7 +15,8 @@
   /* Text — explicit light colors, always */
   --color-leaf-100: #e9f5ea;
   --color-leaf-2nd: rgba(233, 245, 234, 0.62);
-  --color-leaf-mut: rgba(233, 245, 234, 0.4);
+  /* 0.55 keeps "muted" muted while clearing WCAG AA (~4.5:1) on the forest bg */
+  --color-leaf-mut: rgba(233, 245, 234, 0.55);
 
   /* Interactive accent */
   --color-sage: #6ee7a8;
@@ -112,9 +113,11 @@ body {
 /* --- Focus & accessibility ---------------------------------------------- */
 
 :focus-visible {
+  /* No border-radius here — it would override each element's own shape and
+     visibly deform pills, toggles and cards. The outline follows the
+     element's radius on its own. */
   outline: 2px solid var(--color-sage);
   outline-offset: 2px;
-  border-radius: 6px;
 }
 
 ::selection {

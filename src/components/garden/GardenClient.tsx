@@ -3,15 +3,15 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
-import { LogOut, Plus, Settings, Sprout } from "lucide-react";
+import { BookOpen, LogOut, Plus, Settings, Sprout } from "lucide-react";
 import GlassButton from "@/components/glass/GlassButton";
+import GlassIconLink from "@/components/glass/GlassIconLink";
 import PlantCard from "@/components/garden/PlantCard";
 import AddPlantSheet from "@/components/garden/AddPlantSheet";
 import PlantDetailSheet from "@/components/garden/PlantDetailSheet";
 import WeatherBar from "@/components/weather/WeatherBar";
 import { ToastProvider, useToast } from "@/components/Toast";
 import type { Plant, Weather } from "@/lib/types";
-import Link from "next/link";
 
 /** The signed-in garden: grid, weather, add flow, detail sheet, watering. */
 
@@ -128,11 +128,12 @@ function GardenInner({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Link href="/settings" aria-label="Settings">
-            <GlassButton variant="icon" aria-label="Settings">
-              <Settings className="size-4" aria-hidden />
-            </GlassButton>
-          </Link>
+          <GlassIconLink href="/guide" label="Care basics">
+            <BookOpen className="size-4" aria-hidden />
+          </GlassIconLink>
+          <GlassIconLink href="/settings" label="Settings">
+            <Settings className="size-4" aria-hidden />
+          </GlassIconLink>
           <GlassButton variant="icon" onClick={logout} aria-label="Sign out">
             <LogOut className="size-4" aria-hidden />
           </GlassButton>
@@ -165,6 +166,9 @@ function GardenInner({
           <GlassButton variant="primary" size="lg" onClick={() => setAdding(true)}>
             <Plus className="size-4" aria-hidden /> Add your first plant
           </GlassButton>
+          <GlassIconLink href="/guide" label="Read the care basics">
+            <BookOpen className="size-4" aria-hidden />
+          </GlassIconLink>
         </div>
       ) : (
         <motion.div

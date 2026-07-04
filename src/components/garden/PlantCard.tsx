@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { motion, useReducedMotion } from "framer-motion";
-import { Droplet, Eye } from "lucide-react";
+import { Droplet, Eye, ShieldAlert } from "lucide-react";
 import GlassCard from "@/components/glass/GlassCard";
 import PlantIcon from "@/components/garden/PlantIcon";
 import WaterArc from "@/components/garden/WaterArc";
@@ -44,7 +44,12 @@ export default function PlantCard({
       onKeyDown={
         onOpen
           ? (e) => {
-              if (e.key === "Enter" || e.key === " ") {
+              // Only act on the card itself — let Enter/Space on the inner
+              // water button do its own thing (keyboard users can water).
+              if (
+                e.target === e.currentTarget &&
+                (e.key === "Enter" || e.key === " ")
+              ) {
                 e.preventDefault();
                 onOpen(plant);
               }
@@ -80,6 +85,16 @@ export default function PlantCard({
               <Eye
                 className="size-3.5 shrink-0 text-leaf-mut"
                 aria-label="Visible to garden viewers"
+              />
+            )}
+            {(plant.pet_safety === "toxic" || plant.pet_safety === "mild") && (
+              <ShieldAlert
+                className={`size-3.5 shrink-0 ${plant.pet_safety === "toxic" ? "text-[#F8B4B4]" : "text-[#FCD989]"}`}
+                aria-label={
+                  plant.pet_safety === "toxic"
+                    ? "Toxic to pets"
+                    : "Mildly toxic to pets"
+                }
               />
             )}
           </div>

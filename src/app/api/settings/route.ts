@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withUser } from "@/lib/db";
 import { getSession } from "@/lib/session";
+import { readJsonObject } from "@/lib/http";
 
 export const runtime = "nodejs";
 
@@ -11,12 +12,9 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   }
 
-  let body: Record<string, unknown>;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid request." }, { status: 400 });
-  }
+  const parsed = await readJsonObject(req);
+  if (!parsed.ok) return parsed.res;
+  const body = parsed.body;
 
   const updates: Record<string, unknown> = {};
 
@@ -34,6 +32,8 @@ export async function PATCH(req: NextRequest) {
     } else if (
       typeof loc?.lat === "number" &&
       typeof loc?.lon === "number" &&
+      Number.isFinite(loc.lat) &&
+      Number.isFinite(loc.lon) &&
       Math.abs(loc.lat) <= 90 &&
       Math.abs(loc.lon) <= 180
     ) {
@@ -41,6 +41,13 @@ export async function PATCH(req: NextRequest) {
       updates.location_lon = loc.lon;
       updates.location_label =
         typeof loc.label === "string" ? loc.label.slice(0, 80) : null;
+    } else {
+      // A location was supplied but it's malformed — say so instead of
+      // silently dropping it (which looked like a partial success).
+      return NextResponse.json(
+        { error: "That location doesn't look valid." },
+        { status: 400 },
+      );
     }
   }
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withUser } from "@/lib/db";
 import { getSession } from "@/lib/session";
+import { readJsonObject } from "@/lib/http";
 import type { GardenShare } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -32,14 +33,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   }
 
-  let body: { nickname?: string };
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid request." }, { status: 400 });
-  }
-
-  const nickname = (body.nickname ?? "").trim();
+  const parsed = await readJsonObject(req);
+  if (!parsed.ok) return parsed.res;
+  const nickname =
+    typeof parsed.body.nickname === "string" ? parsed.body.nickname.trim() : "";
   if (!nickname) {
     return NextResponse.json(
       { error: "Type a friend's handle first." },

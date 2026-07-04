@@ -1,6 +1,7 @@
 export type CareLevel = "easy" | "moderate" | "expert";
 export type LightLevel = "low" | "medium" | "bright";
 export type HumidityLevel = "low" | "medium" | "high";
+export type PetSafety = "toxic" | "mild" | "safe";
 
 export type Plant = {
   id: string;
@@ -19,6 +20,8 @@ export type Plant = {
   nutrients: string[];
   weekly_tips: string[];
   fun_facts: string[];
+  pet_safety: PetSafety | null;
+  pet_safety_note: string | null;
   is_public: boolean;
   last_watered: string | null;
   created_at: string;
@@ -60,6 +63,8 @@ export type IdentifyResult = {
   weeklyTips: string[];
   funFacts: string[];
   weatherNote: string;
+  petSafety: PetSafety | null;
+  petSafetyNote: string;
 };
 
 export type Advice = {

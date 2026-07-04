@@ -31,7 +31,10 @@ export async function GET() {
       | undefined;
   });
 
-  if (!loc?.location_lat || !loc.location_lon) {
+  // Use null checks, not falsiness: latitude 0 (equator) and longitude 0
+  // (Greenwich/London) are valid locations that `!loc.location_lat` wrongly
+  // treats as "no location set".
+  if (loc?.location_lat == null || loc.location_lon == null) {
     return NextResponse.json({ weather: null, location: null });
   }
 
