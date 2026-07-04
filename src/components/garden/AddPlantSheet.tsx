@@ -2,21 +2,31 @@
 
 import { useRef, useState } from "react";
 import Image from "next/image";
-import { Camera, Sparkles, Sprout } from "lucide-react";
+import { Camera, Droplet, Sparkles, Sprout } from "lucide-react";
 import Sheet from "@/components/garden/Sheet";
 import GlassButton from "@/components/glass/GlassButton";
 import GlassInput from "@/components/glass/GlassInput";
 import PlantIcon from "@/components/garden/PlantIcon";
 import { useToast } from "@/components/Toast";
-import type { IdentifyResult, Plant } from "@/lib/types";
+import type { IdentifyResult, LightLevel, Plant } from "@/lib/types";
 
 /**
- * Add-plant flow: photo and/or name hint -> AI identification -> editable
- * review -> save. Identify stays disabled until a photo or hint exists
- * (Nielsen #5); a manual path covers AI-unavailable setups.
+ * Add-plant flow: a photo and/or whatever details the user knows (name,
+ * species, light at its spot) go to the AI botanist, which returns the care
+ * plan INCLUDING the watering frequency — the schedule is always the AI's
+ * advisory, never user input. Identify stays disabled until something is
+ * provided (Nielsen #5); a manual path covers AI-unavailable setups with a
+ * sensible default schedule.
  */
 
 type Step = "capture" | "review";
+
+const SPOT_LIGHT_OPTIONS: { value: LightLevel | ""; label: string }[] = [
+  { value: "", label: "Not sure" },
+  { value: "low", label: "Low — away from windows" },
+  { value: "medium", label: "Medium — bright indirect" },
+  { value: "bright", label: "Bright — near a window" },
+];
 
 async function downscaleToDataUrl(file: File, maxDim = 1024): Promise<string> {
   const bitmap = await createImageBitmap(file);
@@ -43,6 +53,8 @@ export default function AddPlantSheet({
   const [step, setStep] = useState<Step>("capture");
   const [photo, setPhoto] = useState<string | null>(null);
   const [hint, setHint] = useState("");
+  const [species, setSpecies] = useState("");
+  const [spotLight, setSpotLight] = useState<LightLevel | "">("");
   const [identifying, setIdentifying] = useState(false);
   const [identifyError, setIdentifyError] = useState<string | null>(null);
   const [aiUnavailable, setAiUnavailable] = useState(false);
@@ -50,17 +62,22 @@ export default function AddPlantSheet({
   const [profile, setProfile] = useState<Partial<IdentifyResult>>({});
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [confidence, setConfidence] = useState<number | null>(null);
+  const [aiPlanned, setAiPlanned] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const reset = () => {
     setStep("capture");
     setPhoto(null);
     setHint("");
+    setSpecies("");
+    setSpotLight("");
     setIdentifying(false);
     setIdentifyError(null);
+    setAiUnavailable(false);
     setProfile({});
     setImageUrl(null);
     setConfidence(null);
+    setAiPlanned(false);
     setSaving(false);
   };
 
@@ -68,6 +85,8 @@ export default function AddPlantSheet({
     reset();
     onClose();
   };
+
+  const hasAnyInput = !!photo || !!hint.trim() || !!species.trim();
 
   const pickPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -90,6 +109,10 @@ export default function AddPlantSheet({
         body: JSON.stringify({
           imageBase64: photo ?? undefined,
           hint: hint || undefined,
+          details: {
+            species: species || undefined,
+            spotLight: spotLight || undefined,
+          },
         }),
       });
       const data = await res.json();
@@ -101,9 +124,16 @@ export default function AddPlantSheet({
       setProfile(data.profile);
       setImageUrl(data.imageUrl ?? null);
       setConfidence(data.profile.confidence ?? null);
+      setAiPlanned(true);
+      if (photo && data.photoSaved === false) {
+        toast(
+          "info",
+          "Identified! The photo couldn't be saved though — a leaf icon will stand in.",
+        );
+      }
       setStep("review");
     } catch {
-      setIdentifyError("Couldn't reach the identifier — check your connection.");
+      setIdentifyError("Couldn't reach the botanist — check your connection.");
     } finally {
       setIdentifying(false);
     }
@@ -111,12 +141,15 @@ export default function AddPlantSheet({
 
   const manualEntry = () => {
     setProfile({
-      name: hint || "",
+      name: hint || species || "",
+      species: species || undefined,
+      light: spotLight || undefined,
       iconKey: "sprout",
       waterFreqDays: 7,
     });
     setImageUrl(null);
     setConfidence(null);
+    setAiPlanned(false);
     setStep("review");
   };
 
@@ -172,7 +205,7 @@ export default function AddPlantSheet({
         <div className="flex flex-col gap-5">
           <button
             onClick={() => fileRef.current?.click()}
-            className="glass glass-interactive flex min-h-44 flex-col items-center justify-center gap-3 border-dashed p-6 text-leaf-2nd"
+            className="glass glass-interactive flex min-h-40 flex-col items-center justify-center gap-3 border-dashed p-6 text-leaf-2nd"
             aria-label={photo ? "Change photo" : "Add a photo"}
           >
             {photo ? (
@@ -180,7 +213,7 @@ export default function AddPlantSheet({
               <img
                 src={photo}
                 alt="Your plant"
-                className="max-h-56 rounded-xl object-contain"
+                className="max-h-52 rounded-xl object-contain"
               />
             ) : (
               <>
@@ -204,31 +237,64 @@ export default function AddPlantSheet({
           />
 
           <GlassInput
-            label="Or tell me what it is"
-            placeholder="e.g. monstera, snake plant…"
+            label="What do you call it?"
+            placeholder="e.g. Fernando, monstera, snake plant…"
             value={hint}
             onChange={(e) => setHint(e.target.value)}
-            hint="A photo, a name, or both — then let the botanist look."
             error={identifyError ?? undefined}
           />
+
+          <GlassInput
+            label="Species — if you have an idea"
+            placeholder="e.g. Monstera deliciosa"
+            value={species}
+            onChange={(e) => setSpecies(e.target.value)}
+            hint="Optional — every detail sharpens the botanist's care plan."
+          />
+
+          <div className="flex flex-col gap-1.5">
+            <label
+              htmlFor="spot-light"
+              className="text-sm font-medium text-leaf-2nd"
+            >
+              Light where it sits
+            </label>
+            <select
+              id="spot-light"
+              value={spotLight}
+              onChange={(e) => setSpotLight(e.target.value as LightLevel | "")}
+              className="w-full rounded-xl border border-glass-edge bg-[rgba(255,255,255,0.05)] px-4 py-2.5 text-leaf-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.10)] backdrop-blur-xl outline-none focus-visible:outline-2 focus-visible:outline-sage focus-visible:outline-offset-2 [&>option]:bg-forest-900"
+            >
+              {SPOT_LIGHT_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-leaf-mut">
+              Brighter, warmer spots dry out faster — the botanist folds this
+              into the watering schedule.
+            </p>
+          </div>
 
           <div className="flex flex-wrap items-center gap-3">
             <GlassButton
               variant="primary"
               onClick={identify}
-              disabled={!photo && !hint.trim()}
+              disabled={!hasAnyInput}
               loading={identifying}
             >
               {!identifying && <Sparkles className="size-4" aria-hidden />}
-              {identifying ? "Identifying…" : "Identify"}
+              {identifying ? "Consulting the botanist…" : "Identify & plan care"}
             </GlassButton>
-            <GlassButton variant="ghost" onClick={manualEntry}>
-              Enter details myself
+            <GlassButton variant="ghost" onClick={manualEntry} disabled={!hasAnyInput}>
+              Skip the botanist
             </GlassButton>
             {aiUnavailable && (
               <p className="w-full text-xs text-leaf-mut">
                 The AI botanist isn&apos;t configured on this server yet —
-                manual entry still works.
+                fill in what you know above, then &ldquo;Skip the
+                botanist&rdquo; to add the plant anyway.
               </p>
             )}
           </div>
@@ -278,16 +344,24 @@ export default function AddPlantSheet({
             placeholder="What do you call this one?"
           />
 
-          <GlassInput
-            label="Water every (days)"
-            type="number"
-            min={1}
-            max={90}
-            value={profile.waterFreqDays ?? 7}
-            onChange={(e) =>
-              setProfile((p) => ({ ...p, waterFreqDays: Number(e.target.value) }))
-            }
-          />
+          {/* The watering schedule is the botanist's advisory — displayed,
+              never edited. */}
+          <div className="flex items-center gap-3 rounded-xl border border-[rgba(110,231,168,0.18)] bg-[rgba(110,231,168,0.05)] px-4 py-3">
+            <Droplet className="size-5 shrink-0 text-sage" aria-hidden />
+            <div className="text-sm">
+              <p className="text-leaf-100">
+                Water about every{" "}
+                <span className="font-display">
+                  {profile.waterFreqDays ?? 7} days
+                </span>
+              </p>
+              <p className="mt-0.5 text-xs text-leaf-mut">
+                {aiPlanned
+                  ? "The botanist set this from the species and your spot — it adapts to your weather each week."
+                  : "A starting default that adapts to your weather each week — you can ask the botanist to re-plan it anytime from the plant's page."}
+              </p>
+            </div>
+          </div>
 
           {(profile.weeklyTips?.length ?? 0) > 0 && (
             <div className="rounded-xl border border-glass-edge bg-[rgba(255,255,255,0.04)] p-4">

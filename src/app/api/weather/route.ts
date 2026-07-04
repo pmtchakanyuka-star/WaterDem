@@ -1,11 +1,21 @@
 import { NextResponse } from "next/server";
 import { withUser } from "@/lib/db";
 import { getSession } from "@/lib/session";
-import { currentWeather, wateringFactor, weatherIconKey, weatherNudge } from "@/lib/weather";
+import {
+  currentWeather,
+  weatherIconKey,
+  weeklyNudge,
+  weeklyOutlook,
+} from "@/lib/weather";
 
 export const runtime = "nodejs";
 
-/** Current conditions for the signed-in user's stored location. */
+/**
+ * Current conditions + the weekly watering advisory for the signed-in
+ * user's stored location. `factor` is the WEEK's multiplier — the watering
+ * countdown adapts to the week's weather pattern, not just this moment
+ * (base 7 days -> ~5 days in a hot, dry week).
+ */
 export async function GET() {
   const session = await getSession();
   if (!session) {
@@ -25,20 +35,34 @@ export async function GET() {
     return NextResponse.json({ weather: null, location: null });
   }
 
-  try {
-    const weather = await currentWeather(loc.location_lat, loc.location_lon);
-    return NextResponse.json({
-      weather,
-      location: loc.location_label,
-      factor: wateringFactor(weather),
-      nudge: weatherNudge(weather),
-      iconKey: weatherIconKey(weather.code, weather.isDay),
-    });
-  } catch (err) {
-    console.error("weather failed", err);
+  // Settle independently: a failed weekly forecast degrades to factor 1
+  // (base schedule) without losing current conditions, and vice versa.
+  const [currentResult, weekResult] = await Promise.allSettled([
+    currentWeather(loc.location_lat, loc.location_lon),
+    weeklyOutlook(loc.location_lat, loc.location_lon),
+  ]);
+
+  if (currentResult.status === "rejected" && weekResult.status === "rejected") {
+    console.error("weather failed", currentResult.reason);
     return NextResponse.json(
       { error: "Weather is unavailable right now." },
       { status: 502 },
     );
   }
+
+  const weather =
+    currentResult.status === "fulfilled" ? currentResult.value : null;
+  const week = weekResult.status === "fulfilled" ? weekResult.value : null;
+  if (weekResult.status === "rejected") {
+    console.error("weekly outlook failed (current weather kept)", weekResult.reason);
+  }
+
+  return NextResponse.json({
+    weather,
+    location: loc.location_label,
+    factor: week?.factor ?? 1,
+    nudge: weeklyNudge(week),
+    iconKey: weather ? weatherIconKey(weather.code, weather.isDay) : null,
+    week: week ? { hotDays: week.hotDays, dryDays: week.dryDays } : null,
+  });
 }

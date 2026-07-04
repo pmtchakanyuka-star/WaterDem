@@ -78,28 +78,93 @@ export async function currentWeather(
   };
 }
 
+export type DayOutlook = {
+  date: string;
+  maxTempC: number;
+  meanHumidityPct: number;
+};
+
+export type WeekOutlook = {
+  days: DayOutlook[];
+  hotDays: number;
+  dryDays: number;
+  /** Multiplier for the coming week, 0.7–1. */
+  factor: number;
+};
+
 /**
- * Watering-urgency multiplier applied to a plant's base frequency:
- * hot (>25°C) OR dry (<40% RH) -> water sooner (0.8×); both -> 0.7×.
+ * 7-day outlook for the weekly watering advisory. Uses hourly forecast
+ * (guaranteed open-meteo variables) aggregated per day: daily max temp and
+ * mean humidity.
  */
-export function wateringFactor(weather: Weather | null): number {
-  if (!weather) return 1;
-  const hot = weather.tempC > 25;
-  const dry = weather.humidityPct < 40;
-  if (hot && dry) return 0.7;
-  if (hot || dry) return 0.8;
-  return 1;
+export async function weeklyOutlook(
+  lat: number,
+  lon: number,
+): Promise<WeekOutlook> {
+  const url = new URL("https://api.open-meteo.com/v1/forecast");
+  url.searchParams.set("latitude", String(lat));
+  url.searchParams.set("longitude", String(lon));
+  url.searchParams.set("hourly", "temperature_2m,relative_humidity_2m");
+  url.searchParams.set("forecast_days", "7");
+  url.searchParams.set("timezone", "auto");
+
+  const res = await fetch(url, { next: { revalidate: 3 * 3600 } });
+  if (!res.ok) throw new Error(`weekly forecast failed (${res.status})`);
+  const data = (await res.json()) as {
+    hourly: {
+      time: string[];
+      temperature_2m: number[];
+      relative_humidity_2m: number[];
+    };
+  };
+
+  const byDay = new Map<string, { temps: number[]; hums: number[] }>();
+  data.hourly.time.forEach((t, i) => {
+    const day = t.slice(0, 10);
+    const bucket = byDay.get(day) ?? { temps: [], hums: [] };
+    bucket.temps.push(data.hourly.temperature_2m[i]);
+    bucket.hums.push(data.hourly.relative_humidity_2m[i]);
+    byDay.set(day, bucket);
+  });
+
+  const days: DayOutlook[] = [...byDay.entries()].map(([date, b]) => ({
+    date,
+    maxTempC: Math.max(...b.temps),
+    meanHumidityPct: Math.round(b.hums.reduce((a, v) => a + v, 0) / b.hums.length),
+  }));
+
+  let hotDays = 0;
+  let dryDays = 0;
+  const dayFactors = days.map((d) => {
+    const hot = d.maxTempC > 25;
+    const dry = d.meanHumidityPct < 40;
+    if (hot) hotDays++;
+    if (dry) dryDays++;
+    if (hot && dry) return 0.7;
+    if (hot || dry) return 0.8;
+    return 1;
+  });
+  const factor = days.length
+    ? Math.round((dayFactors.reduce((a, v) => a + v, 0) / days.length) * 100) / 100
+    : 1;
+
+  return { days, hotDays, dryDays, factor };
 }
 
-/** Human line for the weather nudge (empty when conditions are mild). */
-export function weatherNudge(weather: Weather | null): string {
-  const factor = wateringFactor(weather);
-  if (!weather || factor === 1) return "";
-  const hot = weather.tempC > 25;
-  const dry = weather.humidityPct < 40;
-  if (hot && dry) return "Hot and dry today — your plants will be thirstier.";
-  if (hot) return "Warm today — plants may want water a little sooner.";
-  return "Dry air today — plants may want water a little sooner.";
+/**
+ * Human line for the weekly watering advisory (empty when the week is mild).
+ * Deliberately no day count — each plant's own advisory shows its numbers
+ * (base frequency varies per plant, so a generic count would contradict it).
+ */
+export function weeklyNudge(week: WeekOutlook | null): string {
+  if (!week || week.factor >= 0.97) return "";
+  const cause =
+    week.hotDays > 0 && week.dryDays > 0
+      ? "A hot, dry week ahead"
+      : week.hotDays > 0
+        ? "A warm week ahead"
+        : "Dry air this week";
+  return `${cause} — your plants will be thirsty sooner than usual.`;
 }
 
 /** Map open-meteo WMO codes to a Lucide icon name (rendered client-side). */

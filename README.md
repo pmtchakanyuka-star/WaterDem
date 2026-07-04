@@ -79,9 +79,18 @@ Production runs on Vercel: **https://waterdem.vercel.app** (project
 
 - **AI provider:** OpenAI `gpt-4o` (user choice; the original brief specified
   Anthropic). Everything provider-specific is isolated in `src/lib/ai.ts`.
-- **Weather:** open-meteo, keyless. On networks that block it (some corporate
-  firewalls) the app degrades gracefully to non-weather-adjusted countdowns.
-- **Fonts:** Fraunces + Inter are self-hosted from npm (`@fontsource-variable/*`)
-  because Google Fonts was unreachable at build time on the original machine.
+- **Watering frequency is AI-owned.** Users never set it: the botanist sets
+  the base days at identification (from species + the plant's spot), and the
+  countdown adapts to the week via the open-meteo 7-day forecast
+  (`weeklyOutlook` — hot/dry weeks shorten the interval, e.g. 7 days → ~5).
+  A failed photo upload never blocks identification (`photoSaved: false`).
+- **Weather:** open-meteo, keyless; degrades gracefully to the base schedule
+  when unreachable or no location is set.
+- **Fonts:** Fraunces + Inter are self-hosted from npm (`@fontsource-variable/*`).
+- **Local dev on this machine:** Avast antivirus MITMs HTTPS with its own
+  root cert, which Node doesn't trust — `NODE_EXTRA_CA_CERTS` must point to
+  `C:\Users\pchakanyuka\.avast-root-ca.pem` (set as a user env var and in
+  `.claude/launch.json`). Without it, storage uploads/weather/fonts fail
+  with `UNABLE_TO_VERIFY_LEAF_SIGNATURE`.
 - `/dev/glass` is an internal showcase page for auditing the glass design
   system — not linked from the app.

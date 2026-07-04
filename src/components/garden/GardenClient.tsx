@@ -218,6 +218,7 @@ function GardenInner({
         plant={selected}
         weather={wx.weather}
         weatherFactor={wx.factor}
+        weeklyNudge={wx.nudge}
         onClose={() => setSelected(null)}
         onWater={water}
         onUpdated={updatePlant}

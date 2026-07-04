@@ -8,14 +8,15 @@ export const runtime = "nodejs";
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/** Editable fields and their validators. RLS enforces ownership. */
+/**
+ * Editable fields and their validators. RLS enforces ownership.
+ * water_freq_days is deliberately NOT editable — the watering schedule is
+ * the AI botanist's advisory (set at identification, adapted weekly by
+ * weather), never user input.
+ */
 const EDITABLE: Record<string, (v: unknown) => unknown | undefined> = {
   name: (v) =>
     typeof v === "string" && v.trim() ? v.trim().slice(0, 60) : undefined,
-  water_freq_days: (v) => {
-    const n = Math.round(Number(v));
-    return Number.isFinite(n) ? Math.min(90, Math.max(1, n)) : undefined;
-  },
   is_public: (v) => (typeof v === "boolean" ? v : undefined),
   icon_key: (v) =>
     typeof v === "string" && v.trim() ? v.trim().slice(0, 40) : undefined,

@@ -44,6 +44,7 @@ export default function PlantDetailSheet({
   plant,
   weather,
   weatherFactor = 1,
+  weeklyNudge = "",
   onClose,
   onWater,
   onUpdated,
@@ -52,6 +53,7 @@ export default function PlantDetailSheet({
   plant: Plant | null;
   weather: Weather | null;
   weatherFactor?: number;
+  weeklyNudge?: string;
   onClose: () => void;
   onWater: (plant: Plant) => void;
   onUpdated: (plant: Plant) => void;
@@ -61,10 +63,10 @@ export default function PlantDetailSheet({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState("");
-  const [editFreq, setEditFreq] = useState(7);
   const [history, setHistory] = useState<{ id: string; watered_at: string }[]>([]);
   const [advice, setAdvice] = useState<Advice | null>(null);
   const [adviceLoading, setAdviceLoading] = useState(false);
+  const [replanning, setReplanning] = useState(false);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -74,7 +76,6 @@ export default function PlantDetailSheet({
     setHistory([]);
     if (plant) {
       setEditName(plant.name);
-      setEditFreq(plant.water_freq_days);
       fetch(`/api/plants/${plant.id}/water`)
         .then((r) => (r.ok ? r.json() : { logs: [] }))
         .then((d) => setHistory(d.logs ?? []))
@@ -108,10 +109,37 @@ export default function PlantDetailSheet({
   };
 
   const saveEdits = async () => {
-    const updated = await patch({ name: editName, water_freq_days: editFreq });
+    if (!editName.trim()) {
+      toast("error", "Your plant needs a name.");
+      return;
+    }
+    const updated = await patch({ name: editName });
     if (updated) {
       setEditing(false);
       toast("success", "Saved.");
+    }
+  };
+
+  const replan = async () => {
+    setReplanning(true);
+    try {
+      const res = await fetch(`/api/plants/${plant!.id}/replan`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast("error", data.error ?? "The botanist is unavailable right now.");
+        return;
+      }
+      onUpdated(data);
+      toast(
+        "success",
+        `Care plan refreshed — watering every ${data.water_freq_days} days now.`,
+      );
+    } catch {
+      toast("error", "The botanist is unavailable right now — try again.");
+    } finally {
+      setReplanning(false);
     }
   };
 
@@ -202,6 +230,17 @@ export default function PlantDetailSheet({
                 waterFreqDays={plant.water_freq_days}
                 weatherFactor={weatherFactor}
               />
+              <p className="mt-1.5 text-xs text-leaf-mut">
+                Botanist&apos;s advisory: every ~
+                {Math.max(1, Math.round(plant.water_freq_days * weatherFactor))}{" "}
+                days this week
+                {weatherFactor < 0.97
+                  ? ` (base ${plant.water_freq_days}) — adjusted for this week's weather.`
+                  : ` — the species' usual rhythm.`}
+              </p>
+              {weatherFactor < 0.97 && weeklyNudge && (
+                <p className="mt-0.5 text-xs text-leaf-mut">{weeklyNudge}</p>
+              )}
             </div>
             <div className="mt-4 flex flex-wrap gap-2.5">
               <GlassButton variant="primary" size="sm" onClick={() => onWater(plant)}>
@@ -241,18 +280,26 @@ export default function PlantDetailSheet({
               label="Name"
               value={editName}
               onChange={(e) => setEditName(e.target.value)}
+              hint="The watering schedule isn't editable — if it seems off, ask the botanist to re-plan below."
             />
-            <GlassInput
-              label="Water every (days)"
-              type="number"
-              min={1}
-              max={90}
-              value={editFreq}
-              onChange={(e) => setEditFreq(Number(e.target.value))}
-            />
-            <div>
-              <GlassButton variant="primary" size="sm" onClick={saveEdits} loading={busy}>
+            <div className="flex flex-wrap items-center gap-2.5">
+              <GlassButton
+                variant="primary"
+                size="sm"
+                onClick={saveEdits}
+                loading={busy}
+                disabled={!editName.trim()}
+              >
                 Save changes
+              </GlassButton>
+              <GlassButton
+                variant="ghost"
+                size="sm"
+                onClick={replan}
+                loading={replanning}
+              >
+                {!replanning && <Sparkles className="size-4" aria-hidden />}
+                {replanning ? "Re-planning…" : "Re-plan care with the botanist"}
               </GlassButton>
             </div>
           </div>

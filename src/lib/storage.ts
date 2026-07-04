@@ -7,13 +7,33 @@ import { randomUUID } from "crypto";
  * public-read with unguessable object names.
  */
 
+// Diagnostic wrapper: undici reports network failures as a bare "fetch
+// failed" — surface the real cause so storage issues are debuggable.
+const diagnosticFetch: typeof fetch = async (input, init) => {
+  try {
+    return await fetch(input, init);
+  } catch (err) {
+    const cause = (err as { cause?: { code?: string; message?: string } }).cause;
+    console.error(
+      "storage fetch failed:",
+      String(input).slice(0, 120),
+      "| cause:",
+      cause?.code ?? cause?.message ?? String(err),
+    );
+    throw err;
+  }
+};
+
 function client() {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) {
     throw new Error("SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY not set");
   }
-  return createClient(url, key, { auth: { persistSession: false } });
+  return createClient(url, key, {
+    auth: { persistSession: false },
+    global: { fetch: diagnosticFetch },
+  });
 }
 
 const BUCKET = "plant-photos";

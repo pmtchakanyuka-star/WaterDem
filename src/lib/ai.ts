@@ -94,25 +94,56 @@ async function chatJson(
   const data = (await res.json()) as {
     choices: { message: { content: string } }[];
   };
-  return JSON.parse(data.choices[0].message.content);
+  // The model can emit literal `null` or non-object JSON for nonsense
+  // input — normalize so callers can rely on object shape.
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(data.choices[0].message.content);
+  } catch {
+    parsed = null;
+  }
+  return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+    ? (parsed as Record<string, unknown>)
+    : { error: "unparseable" };
 }
+
+export type IdentifyDetails = {
+  /** Scientific or common species name, if the user knows it. */
+  species?: string;
+  /** How much light the plant's spot gets in the user's home. */
+  spotLight?: "low" | "medium" | "bright";
+};
 
 export async function identifyPlant(input: {
   imageBase64?: string;
   hint?: string;
+  details?: IdentifyDetails;
 }): Promise<IdentifyResult | null> {
+  const context: string[] = [];
+  if (input.hint) context.push(`The user calls it: ${input.hint}`);
+  if (input.details?.species)
+    context.push(`The user believes the species is: ${input.details.species}`);
+  if (input.details?.spotLight)
+    context.push(
+      `Its spot in their home gets ${input.details.spotLight} light — weigh this when setting waterFreqDays (more light and warmth means faster drying).`,
+    );
+
   const content: OpenAiContentPart[] = [
     {
       type: "text",
       text:
         IDENTIFY_INSTRUCTIONS +
-        (input.hint ? `\n\nUser hint: ${input.hint}` : ""),
+        (context.length ? `\n\n${context.join("\n")}` : ""),
     },
   ];
   if (input.imageBase64) {
-    const url = input.imageBase64.startsWith("data:")
-      ? input.imageBase64
-      : `data:image/jpeg;base64,${input.imageBase64}`;
+    // Accepts a data URL, a bare base64 payload, or an https URL (used when
+    // re-planning against a plant's stored photo).
+    const url =
+      input.imageBase64.startsWith("data:") ||
+      input.imageBase64.startsWith("http")
+        ? input.imageBase64
+        : `data:image/jpeg;base64,${input.imageBase64}`;
     content.push({ type: "image_url", image_url: { url, detail: "low" } });
   }
 
@@ -158,6 +189,8 @@ export async function identifyPlant(input: {
   };
 }
 
+class AiResponseError extends Error {}
+
 export async function adviseForPlant(
   plant: Pick<
     Plant,
@@ -191,11 +224,14 @@ conditions. Plain human language — no database jargon.`,
     ],
   );
 
+  // Malformed model output must surface as a retryable failure, never as
+  // fabricated advice (identifyPlant applies the same rule via raw.error).
+  if (raw.error || typeof raw.greeting !== "string") {
+    throw new AiResponseError("advice response was unusable");
+  }
+
   return {
-    greeting:
-      typeof raw.greeting === "string"
-        ? raw.greeting
-        : "Your plant is doing fine.",
+    greeting: raw.greeting,
     tips: Array.isArray(raw.tips)
       ? raw.tips.filter((t) => typeof t === "string").slice(0, 4)
       : [],
