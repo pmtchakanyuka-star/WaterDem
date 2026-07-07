@@ -1,8 +1,8 @@
 name: Deploy to Vercel (production)
 
-# Builds and deploys on every push to master from GitHub's runners, so
-# deploys don't depend on a local machine's network to Vercel. Requires three
-# repo secrets: VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID.
+# Builds on GitHub's runner (fast, plenty of RAM) and uploads the prebuilt
+# output, so Vercel never runs the heavy three.js build in its constrained
+# Hobby builder. Requires secrets: VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID.
 on:
   push:
     branches: [master]
@@ -22,26 +22,31 @@ jobs:
           node-version: 22
       - name: Install Vercel CLI
         run: npm install -g vercel@latest
-      - name: Show current deployment states
-        continue-on-error: true
-        run: vercel ls waterdem --token="$TOKEN" | head -20
       - name: Clear stale (non-production) deployments
         continue-on-error: true
         run: vercel remove waterdem --safe --yes --token="$TOKEN"
-      - name: Deploy to production (Vercel builds from source)
+      - name: Pull project settings
+        run: vercel pull --yes --environment=production --token="$TOKEN"
+      - name: Build (on the runner)
+        run: vercel build --prod --token="$TOKEN"
+      - name: Deploy prebuilt output to production
         id: deploy
         run: |
           set -eo pipefail
-          URL=$(timeout 600 vercel deploy --prod --yes --token="$TOKEN")
+          URL=$(timeout 1500 vercel deploy --prebuilt --prod --yes --token="$TOKEN")
           echo "Deployed: $URL"
           echo "url=$URL" >> "$GITHUB_OUTPUT"
+      - name: Show deployment build logs (diagnostics)
+        if: always()
+        continue-on-error: true
+        run: vercel inspect --logs "${{ steps.deploy.outputs.url }}" --token="$TOKEN" 2>&1 | tail -60 || true
       - name: Confirm production is live
+        if: always()
         run: |
-          echo "Checking https://waterdem.vercel.app ..."
           for i in $(seq 1 20); do
             code=$(curl -s -o /dev/null -w "%{http_code}" https://waterdem.vercel.app/guide || echo 000)
             echo "attempt $i: /guide -> $code"
             if [ "$code" = "200" ]; then echo "Production updated."; exit 0; fi
             sleep 6
           done
-          echo "Production alias did not reflect /guide=200 yet (may still be propagating)."
+          echo "Production alias not yet reflecting /guide=200."
