@@ -1,0 +1,21 @@
+name: Vercel account diagnostics
+
+on:
+  workflow_dispatch:
+
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      TOKEN: ${{ secrets.VERCEL_TOKEN }}
+    steps:
+      - name: Query account / team block + billing status
+        run: |
+          API="https://api.vercel.com"
+          echo "== user =="
+          curl -s -H "Authorization: Bearer ${TOKEN}" "${API}/v2/user" \
+            | jq '{blocked: .user.blocked, billingCheckout: .user.billingCheckout, softBlock: .user.softBlock, version: .user.version}' || true
+          echo "== team =="
+          curl -s -H "Authorization: Bearer ${TOKEN}" "${API}/v2/teams/${VERCEL_ORG_ID}" \
+            | jq '{name: .name, blocked: .blocked, softBlock: .softBlock, billing: .billing}' || true

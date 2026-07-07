@@ -5,9 +5,10 @@ name: Deploy to Vercel (production)
 # a non-terminal state (BUILDING/QUEUED/INITIALIZING) that would otherwise
 # hold Hobby's single build-concurrency slot and make new deploys hang.
 # Secrets: VERCEL_TOKEN, VERCEL_ORG_ID (team id), VERCEL_PROJECT_ID.
+# Manual trigger only — auto-deploy on push is disabled while the Vercel
+# account's deployments are BLOCKED (usage limit). Re-enable the `push`
+# trigger once the account block is resolved.
 on:
-  push:
-    branches: [master]
   workflow_dispatch:
 
 jobs:
