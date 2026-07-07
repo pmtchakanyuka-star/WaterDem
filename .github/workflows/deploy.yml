@@ -21,6 +21,9 @@ jobs:
           node-version: 22
       - name: Install Vercel CLI
         run: npm install -g vercel@latest
+      - name: Clear stale (non-production) deployments to unclog the build queue
+        continue-on-error: true
+        run: vercel remove waterdem --safe --yes --token="${{ secrets.VERCEL_TOKEN }}"
       - name: Pull Vercel project settings
         run: vercel pull --yes --environment=production --token="${{ secrets.VERCEL_TOKEN }}"
       - name: Build
