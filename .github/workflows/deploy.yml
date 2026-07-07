@@ -25,21 +25,25 @@ jobs:
       - name: Install Vercel CLI
         run: npm install -g vercel@latest
 
-      - name: Cancel deployments stuck building (frees the build slot)
+      - name: Cancel any non-terminal deployment (BLOCKED/BUILDING/QUEUED) then remove it
         continue-on-error: true
         run: |
           set -uo pipefail
           API="https://api.vercel.com"
           Q="teamId=${VERCEL_ORG_ID}&projectId=${VERCEL_PROJECT_ID}&limit=100"
           list=$(curl -s -H "Authorization: Bearer ${TOKEN}" "${API}/v6/deployments?${Q}")
-          echo "$list" | jq -r '.deployments[] | "\(.uid) \(.state // .readyState) \(.url)"'
-          for uid in $(echo "$list" | jq -r '.deployments[] | select((.state // .readyState) as $s | $s=="BUILDING" or $s=="QUEUED" or $s=="INITIALIZING") | .uid'); do
-            echo "Canceling stuck deployment $uid"
-            curl -s -X PATCH -H "Authorization: Bearer ${TOKEN}" "${API}/v12/deployments/${uid}/cancel?teamId=${VERCEL_ORG_ID}" -o /dev/null -w "  cancel status: %{http_code}\n"
+          echo "Current deployment states:"
+          echo "$list" | jq -r '.deployments[] | "  \(.state // .readyState)\t\(.url)"'
+          # Anything that isn't a finished state is a blocker — cancel then delete it.
+          ids=$(echo "$list" | jq -r '.deployments[] | select((.state // .readyState) as $s | ($s=="READY" or $s=="ERROR" or $s=="CANCELED" or $s=="DELETED") | not) | .uid')
+          for uid in $ids; do
+            echo "Canceling $uid"
+            curl -s -X PATCH -H "Authorization: Bearer ${TOKEN}" "${API}/v13/deployments/${uid}/cancel?teamId=${VERCEL_ORG_ID}" -o /dev/null -w "  cancel: %{http_code}\n"
+            sleep 2
+            curl -s -X DELETE -H "Authorization: Bearer ${TOKEN}" "${API}/v13/deployments/${uid}?teamId=${VERCEL_ORG_ID}" -o /dev/null -w "  delete: %{http_code}\n"
           done
-      - name: Remove leftover non-production deployments
-        continue-on-error: true
-        run: vercel remove waterdem --safe --yes --token="$TOKEN"
+          echo "After cleanup:"
+          curl -s -H "Authorization: Bearer ${TOKEN}" "${API}/v6/deployments?${Q}" | jq -r '.deployments[] | "  \(.state // .readyState)\t\(.url)"'
 
       - name: Pull project settings
         run: vercel pull --yes --environment=production --token="$TOKEN"
