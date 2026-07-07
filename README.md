@@ -6,10 +6,30 @@ its next watering. Local weather nudges the advice — hot or dry days mean
 water sooner. Open your garden to the public or invite friends by handle to
 view (read-only) the plants you choose to share.
 
+There are two ways to see your plants: a **grid** and a **3D home** — a cozy
+low-poly house (react-three-fiber) where you pick up to two rooms, place plants
+in them, and tap a plant to care for it. Plants droop when overdue and perk up
+when watered.
+
 Built with Next.js 15 (App Router), Tailwind CSS v4, Supabase (Postgres +
-Storage + Row Level Security), OpenAI (gpt-4o vision), open-meteo, Lucide
-icons and Framer Motion. Design: botanical tactile glassmorphism over a
-living forest gradient.
+Storage + Row Level Security), OpenAI (gpt-4o vision), open-meteo,
+react-three-fiber/three, Lucide icons and Framer Motion. Design: botanical
+tactile glassmorphism over a living forest gradient.
+
+## The 3D home view
+
+A Grid ↔ Home toggle on the garden. The Three.js bundle is lazy-loaded
+(`next/dynamic`, `ssr:false`) so it only downloads when the Home view opens —
+the grid's first-load JS is unchanged. Rooms and furniture are procedural
+low-poly geometry (no external model assets, matching the app's self-contained
+setup); the camera orbits and pinch-zooms. `frameloop="demand"` keeps it idle
+at rest for mobile battery, reduced-motion is respected, and it falls back to
+the grid when WebGL is unavailable or a render error occurs.
+
+Data: `users.home_spaces` (≤2 room keys) and `plants.room` (migration
+`0004_home.sql`). The 5 rooms are living room, kitchen, bedroom, bathroom,
+balcony. Note: `next dev`/`next build` run on webpack (not Turbopack) for
+react-three-fiber compatibility.
 
 ## Running locally
 
