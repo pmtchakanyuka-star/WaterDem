@@ -14,6 +14,7 @@ jobs:
     env:
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      TOKEN: ${{ secrets.VERCEL_TOKEN }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -21,12 +22,26 @@ jobs:
           node-version: 22
       - name: Install Vercel CLI
         run: npm install -g vercel@latest
-      - name: Clear stale (non-production) deployments to unclog the build queue
+      - name: Show current deployment states
         continue-on-error: true
-        run: vercel remove waterdem --safe --yes --token="${{ secrets.VERCEL_TOKEN }}"
-      - name: Pull Vercel project settings
-        run: vercel pull --yes --environment=production --token="${{ secrets.VERCEL_TOKEN }}"
-      - name: Build
-        run: vercel build --prod --token="${{ secrets.VERCEL_TOKEN }}"
-      - name: Deploy prebuilt output to production
-        run: vercel deploy --prebuilt --prod --token="${{ secrets.VERCEL_TOKEN }}"
+        run: vercel ls waterdem --token="$TOKEN" | head -20
+      - name: Clear stale (non-production) deployments
+        continue-on-error: true
+        run: vercel remove waterdem --safe --yes --token="$TOKEN"
+      - name: Deploy to production (Vercel builds from source)
+        id: deploy
+        run: |
+          set -eo pipefail
+          URL=$(timeout 600 vercel deploy --prod --yes --token="$TOKEN")
+          echo "Deployed: $URL"
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+      - name: Confirm production is live
+        run: |
+          echo "Checking https://waterdem.vercel.app ..."
+          for i in $(seq 1 20); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" https://waterdem.vercel.app/guide || echo 000)
+            echo "attempt $i: /guide -> $code"
+            if [ "$code" = "200" ]; then echo "Production updated."; exit 0; fi
+            sleep 6
+          done
+          echo "Production alias did not reflect /guide=200 yet (may still be propagating)."
