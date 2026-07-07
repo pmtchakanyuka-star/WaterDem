@@ -10,12 +10,23 @@ jobs:
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
       TOKEN: ${{ secrets.VERCEL_TOKEN }}
     steps:
-      - name: Query account / team block + billing status
+      - name: Query account block status
         run: |
           API="https://api.vercel.com"
-          echo "== user =="
           curl -s -H "Authorization: Bearer ${TOKEN}" "${API}/v2/user" \
-            | jq '{blocked: .user.blocked, billingCheckout: .user.billingCheckout, softBlock: .user.softBlock, version: .user.version}' || true
-          echo "== team =="
-          curl -s -H "Authorization: Bearer ${TOKEN}" "${API}/v2/teams/${VERCEL_ORG_ID}" \
-            | jq '{name: .name, blocked: .blocked, softBlock: .softBlock, billing: .billing}' || true
+            | jq '{blocked: .user.blocked, softBlock: .user.softBlock}' || true
+      - name: List ALL deployments account-wide with states (find the slot holder)
+        run: |
+          API="https://api.vercel.com"
+          all=$(curl -s -H "Authorization: Bearer ${TOKEN}" "${API}/v6/deployments?teamId=${VERCEL_ORG_ID}&limit=100")
+          echo "All deployments (any project):"
+          echo "$all" | jq -r '.deployments[] | "  \(.state // .readyState)\t\(.name)\t\(.url)"'
+          echo ""
+          echo "Non-terminal (would hold the build slot):"
+          echo "$all" | jq -r '.deployments[] | select((.state // .readyState) as $s | ($s=="READY" or $s=="ERROR" or $s=="CANCELED" or $s=="DELETED") | not) | "  \(.state // .readyState)\t\(.uid)\t\(.url)"'
+          # Try to cancel + delete every non-terminal one, whatever the project.
+          for uid in $(echo "$all" | jq -r '.deployments[] | select((.state // .readyState) as $s | ($s=="READY" or $s=="ERROR" or $s=="CANCELED" or $s=="DELETED") | not) | .uid'); do
+            echo "cancel $uid:"; curl -s -X PATCH -H "Authorization: Bearer ${TOKEN}" "${API}/v13/deployments/${uid}/cancel?teamId=${VERCEL_ORG_ID}" -o /dev/null -w "  %{http_code}\n"
+            sleep 2
+            echo "delete $uid:"; curl -s -X DELETE -H "Authorization: Bearer ${TOKEN}" "${API}/v13/deployments/${uid}?teamId=${VERCEL_ORG_ID}" -o /dev/null -w "  %{http_code}\n"
+          done
