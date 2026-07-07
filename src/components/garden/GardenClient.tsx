@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
-import { BookOpen, LogOut, Plus, Settings, Sprout } from "lucide-react";
+import { BookOpen, Home, LayoutGrid, LogOut, Plus, Settings, Sprout } from "lucide-react";
 import GlassButton from "@/components/glass/GlassButton";
 import GlassIconLink from "@/components/glass/GlassIconLink";
 import PlantCard from "@/components/garden/PlantCard";
@@ -11,9 +12,23 @@ import AddPlantSheet from "@/components/garden/AddPlantSheet";
 import PlantDetailSheet from "@/components/garden/PlantDetailSheet";
 import WeatherBar from "@/components/weather/WeatherBar";
 import { ToastProvider, useToast } from "@/components/Toast";
+import type { RoomKey } from "@/lib/home";
 import type { Plant, Weather } from "@/lib/types";
 
-/** The signed-in garden: grid, weather, add flow, detail sheet, watering. */
+// The whole Three.js bundle is lazy — it only downloads when a user opens the
+// Home view, and never runs on the server.
+const HomeView = dynamic(() => import("@/components/home/HomeView"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex min-h-[50vh] items-center justify-center text-sm text-leaf-mut">
+      Warming up your home…
+    </div>
+  ),
+});
+
+type GardenView = "grid" | "home";
+
+/** The signed-in garden: grid, weather, 3D home, add flow, detail sheet. */
 
 type WeatherState = {
   weather: Weather | null;
@@ -27,9 +42,11 @@ type WeatherState = {
 function GardenInner({
   nickname,
   initialPlants,
+  initialHomeSpaces,
 }: {
   nickname: string;
   initialPlants: Plant[];
+  initialHomeSpaces: RoomKey[];
 }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -38,6 +55,20 @@ function GardenInner({
   const [plants, setPlants] = useState<Plant[]>(initialPlants);
   const [adding, setAdding] = useState(false);
   const [selected, setSelected] = useState<Plant | null>(null);
+  const [view, setView] = useState<GardenView>("grid");
+  const [homeSpaces, setHomeSpaces] = useState<RoomKey[]>(initialHomeSpaces);
+  const [savingSpaces, setSavingSpaces] = useState(false);
+
+  // Restore the last-used view (client-only, after hydration).
+  useEffect(() => {
+    const saved = localStorage.getItem("waterdem:view");
+    if (saved === "home" || saved === "grid") setView(saved);
+  }, []);
+
+  const switchView = useCallback((next: GardenView) => {
+    setView(next);
+    localStorage.setItem("waterdem:view", next);
+  }, []);
   const [wx, setWx] = useState<WeatherState>({
     weather: null,
     location: null,
@@ -66,6 +97,11 @@ function GardenInner({
   const updatePlant = useCallback((updated: Plant) => {
     setPlants((ps) => ps.map((p) => (p.id === updated.id ? updated : p)));
     setSelected((s) => (s?.id === updated.id ? updated : s));
+  }, []);
+
+  const updatePlant2 = useCallback((id: string, partial: Partial<Plant>) => {
+    setPlants((ps) => ps.map((p) => (p.id === id ? { ...p, ...partial } : p)));
+    setSelected((s) => (s?.id === id ? { ...s, ...partial } : s));
   }, []);
 
   const water = useCallback(
@@ -102,6 +138,48 @@ function GardenInner({
     [toast, updatePlant],
   );
 
+  const assignRoom = useCallback(
+    async (plantId: string, room: RoomKey) => {
+      const prev = plants.find((p) => p.id === plantId)?.room ?? null;
+      updatePlant2(plantId, { room }); // optimistic
+      const res = await fetch(`/api/plants/${plantId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ room }),
+      }).catch(() => null);
+      if (!res?.ok) {
+        updatePlant2(plantId, { room: prev });
+        toast("error", "Couldn't move that plant — try again.");
+      }
+    },
+    [plants, toast], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
+  const changeSpaces = useCallback(
+    async (spaces: RoomKey[]) => {
+      setSavingSpaces(true);
+      const res = await fetch("/api/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ home_spaces: spaces }),
+      }).catch(() => null);
+      setSavingSpaces(false);
+      if (!res?.ok) {
+        toast("error", "Couldn't save your rooms — try again.");
+        return;
+      }
+      setHomeSpaces(spaces);
+      // Server unplaces plants in rooms no longer chosen — mirror that locally.
+      setPlants((ps) =>
+        ps.map((p) =>
+          p.room && !spaces.includes(p.room) ? { ...p, room: null } : p,
+        ),
+      );
+      toast("success", "Your home is set.");
+    },
+    [toast],
+  );
+
   const logout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });
     router.push("/login");
@@ -128,6 +206,37 @@ function GardenInner({
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {/* Grid <-> Home view toggle */}
+          <div
+            role="group"
+            aria-label="Choose a view"
+            className="glass flex items-center gap-0.5 rounded-full p-1"
+          >
+            <button
+              onClick={() => switchView("grid")}
+              aria-pressed={view === "grid"}
+              aria-label="Grid view"
+              className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs transition-colors ${
+                view === "grid"
+                  ? "bg-[rgba(110,231,168,0.16)] text-sage"
+                  : "text-leaf-2nd hover:text-leaf-100"
+              }`}
+            >
+              <LayoutGrid className="size-3.5" aria-hidden /> Grid
+            </button>
+            <button
+              onClick={() => switchView("home")}
+              aria-pressed={view === "home"}
+              aria-label="Home view"
+              className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs transition-colors ${
+                view === "home"
+                  ? "bg-[rgba(110,231,168,0.16)] text-sage"
+                  : "text-leaf-2nd hover:text-leaf-100"
+              }`}
+            >
+              <Home className="size-3.5" aria-hidden /> Home
+            </button>
+          </div>
           <GlassIconLink href="/guide" label="Care basics">
             <BookOpen className="size-4" aria-hidden />
           </GlassIconLink>
@@ -148,7 +257,40 @@ function GardenInner({
         loading={wx.loading}
       />
 
-      {plants.length === 0 ? (
+      {view === "home" ? (
+        plants.length === 0 ? (
+          <div className="flex flex-1 flex-col items-center justify-center gap-5 py-16 text-center">
+            <div className="flex size-20 items-center justify-center rounded-3xl border border-[rgba(110,231,168,0.22)] bg-[rgba(110,231,168,0.08)]">
+              <Home className="size-9 text-sage" aria-hidden />
+            </div>
+            <div>
+              <h2 className="font-display text-3xl text-leaf-100">
+                Your home is waiting
+              </h2>
+              <p className="mx-auto mt-2 max-w-sm text-sm text-leaf-2nd">
+                Add a plant first, then pick the rooms it lives in.
+              </p>
+            </div>
+            <GlassButton variant="primary" size="lg" onClick={() => setAdding(true)}>
+              <Plus className="size-4" aria-hidden /> Add your first plant
+            </GlassButton>
+          </div>
+        ) : (
+          <HomeView
+            plants={plants}
+            homeSpaces={homeSpaces}
+            weatherFactor={wx.factor}
+            saving={savingSpaces}
+            onSelect={setSelected}
+            onAssign={assignRoom}
+            onSpacesChange={changeSpaces}
+            onFallback={() => {
+              switchView("grid");
+              toast("info", "Showing your grid instead.");
+            }}
+          />
+        )
+      ) : plants.length === 0 ? (
         /* teaching empty state — this app is a garden, not a dashboard */
         <div className="flex flex-1 flex-col items-center justify-center gap-5 py-16 text-center">
           <div className="flex size-20 items-center justify-center rounded-3xl border border-[rgba(110,231,168,0.22)] bg-[rgba(110,231,168,0.08)]">
@@ -235,6 +377,7 @@ function GardenInner({
 export default function GardenClient(props: {
   nickname: string;
   initialPlants: Plant[];
+  initialHomeSpaces: RoomKey[];
 }) {
   return (
     <ToastProvider>

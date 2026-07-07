@@ -1,3 +1,4 @@
+import { toRoomKey } from "@/lib/home";
 import type { Plant } from "@/lib/types";
 
 /**
@@ -29,6 +30,7 @@ export function normalizePlant(row: Record<string, unknown>): Plant {
     nutrients: arr(row.nutrients),
     weekly_tips: arr(row.weekly_tips),
     fun_facts: arr(row.fun_facts),
+    room: toRoomKey(row.room),
     last_watered: ts(row.last_watered),
     created_at: ts(row.created_at) ?? "",
   };

@@ -3,6 +3,7 @@ import { withUser } from "@/lib/db";
 import { getSession } from "@/lib/session";
 import { normalizePlant } from "@/lib/normalize";
 import { readJsonObject } from "@/lib/http";
+import { coerceHomeSpaces, isRoomKey, type RoomKey } from "@/lib/home";
 
 export const runtime = "nodejs";
 
@@ -47,17 +48,49 @@ export async function PATCH(
       if (v !== undefined) updates[field] = v;
     }
   }
-  if (Object.keys(updates).length === 0) {
+
+  // `room` is special: null (unplace) is always allowed, but a room key is
+  // only valid if it's one of the owner's chosen home_spaces — which we can
+  // only know inside the transaction. Flag it here; validate in the tx.
+  let roomChange: { value: RoomKey | null } | null = null;
+  if ("room" in body) {
+    if (body.room === null) {
+      roomChange = { value: null };
+    } else if (isRoomKey(body.room)) {
+      roomChange = { value: body.room };
+    } else {
+      return NextResponse.json({ error: "Unknown room." }, { status: 400 });
+    }
+  }
+
+  if (Object.keys(updates).length === 0 && !roomChange) {
     return NextResponse.json({ error: "Nothing to update." }, { status: 400 });
   }
 
-  const plant = await withUser(session.userId, async (tx) => {
+  const result = await withUser(session.userId, async (tx) => {
+    if (roomChange && roomChange.value !== null) {
+      const rows = await tx`
+        select home_spaces from users where id = ${session.userId}`;
+      const spaces = coerceHomeSpaces(rows[0]?.home_spaces);
+      if (!spaces.includes(roomChange.value)) return { badRoom: true as const };
+      updates.room = roomChange.value;
+    } else if (roomChange) {
+      updates.room = null;
+    }
     const rows = await tx`
       update plants set ${tx(updates)}
       where id = ${id}
       returning *`;
-    return rows[0] ? normalizePlant(rows[0]) : undefined;
+    return { plant: rows[0] ? normalizePlant(rows[0]) : undefined };
   });
+
+  if ("badRoom" in result) {
+    return NextResponse.json(
+      { error: "That room isn't in your home yet." },
+      { status: 400 },
+    );
+  }
+  const plant = result.plant;
 
   if (!plant) {
     return NextResponse.json({ error: "Unknown plant." }, { status: 404 });

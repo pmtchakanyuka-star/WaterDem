@@ -1,3 +1,5 @@
+import type { RoomKey } from "@/lib/home";
+
 export type CareLevel = "easy" | "moderate" | "expert";
 export type LightLevel = "low" | "medium" | "bright";
 export type HumidityLevel = "low" | "medium" | "high";
@@ -22,6 +24,7 @@ export type Plant = {
   fun_facts: string[];
   pet_safety: PetSafety | null;
   pet_safety_note: string | null;
+  room: RoomKey | null;
   is_public: boolean;
   last_watered: string | null;
   created_at: string;
@@ -37,6 +40,7 @@ export type UserSettings = UserPublic & {
   location_lat: number | null;
   location_lon: number | null;
   location_label: string | null;
+  home_spaces: RoomKey[];
 };
 
 export type Weather = {

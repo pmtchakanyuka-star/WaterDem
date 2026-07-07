@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { withUser } from "@/lib/db";
 import { getSession } from "@/lib/session";
 import { readJsonObject } from "@/lib/http";
+import { coerceHomeSpaces, normalizeHomeSpaces, type RoomKey } from "@/lib/home";
 
 export const runtime = "nodejs";
 
-/** Update own profile settings: location and the garden-wide public toggle. */
+/** Update own profile settings: location, garden visibility, home spaces. */
 export async function PATCH(req: NextRequest) {
   const session = await getSession();
   if (!session) {
@@ -17,9 +18,20 @@ export async function PATCH(req: NextRequest) {
   const body = parsed.body;
 
   const updates: Record<string, unknown> = {};
+  let newSpaces: RoomKey[] | null = null;
 
   if ("garden_is_public" in body && typeof body.garden_is_public === "boolean") {
     updates.garden_is_public = body.garden_is_public;
+  }
+  if ("home_spaces" in body) {
+    newSpaces = normalizeHomeSpaces(body.home_spaces);
+    if (newSpaces === null) {
+      return NextResponse.json(
+        { error: "Pick up to two rooms." },
+        { status: 400 },
+      );
+    }
+    updates.home_spaces = JSON.stringify(newSpaces);
   }
   if ("location" in body) {
     const loc = body.location as {
@@ -60,9 +72,25 @@ export async function PATCH(req: NextRequest) {
       update users set ${tx(updates)}
       where id = ${session.userId}
       returning id, nickname, garden_is_public,
-                location_lat, location_lon, location_label`;
+                location_lat, location_lon, location_label, home_spaces`;
+    // When the chosen spaces change, unplace any plant now in a room the user
+    // no longer has — the plant isn't lost, it returns to the unplaced tray.
+    if (newSpaces !== null) {
+      if (newSpaces.length === 0) {
+        await tx`update plants set room = null where owner_id = ${session.userId} and room is not null`;
+      } else {
+        await tx`
+          update plants set room = null
+          where owner_id = ${session.userId}
+            and room is not null
+            and room <> all(${newSpaces})`;
+      }
+    }
     return rows[0];
   });
 
-  return NextResponse.json(user);
+  return NextResponse.json({
+    ...user,
+    home_spaces: coerceHomeSpaces(user?.home_spaces),
+  });
 }
