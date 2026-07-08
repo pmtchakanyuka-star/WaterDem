@@ -5,6 +5,9 @@ name: Deploy Vercel Preview
 # before merging to master. Prints the preview URL in the run summary.
 # Secrets: VERCEL_TOKEN, VERCEL_ORG_ID (team id), VERCEL_PROJECT_ID.
 on:
+  push:
+    branches:
+      - "preview/**"
   workflow_dispatch:
 
 jobs:
