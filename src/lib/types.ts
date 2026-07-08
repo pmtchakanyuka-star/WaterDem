@@ -5,6 +5,10 @@ export type LightLevel = "low" | "medium" | "bright";
 export type HumidityLevel = "low" | "medium" | "high";
 export type PetSafety = "toxic" | "mild" | "safe";
 
+/** Home-view "avatar" for a plant: its look and its pot, chosen by the user. */
+export type PlantLook = "monstera" | "fern" | "palm" | "banana" | "cannabis";
+export type PotLook = "twotone" | "terracotta" | "teal" | "rasta" | "sand";
+
 export type Plant = {
   id: string;
   owner_id: string;
@@ -25,6 +29,8 @@ export type Plant = {
   pet_safety: PetSafety | null;
   pet_safety_note: string | null;
   room: RoomKey | null;
+  plant_look: PlantLook | null;
+  pot_look: PotLook | null;
   is_public: boolean;
   last_watered: string | null;
   created_at: string;

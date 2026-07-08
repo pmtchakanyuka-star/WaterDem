@@ -41,6 +41,9 @@ const EDITABLE: Record<string, (v: unknown) => unknown | undefined> = {
   care_level: oneOfOrNull(["easy", "moderate", "expert"]),
   light: oneOfOrNull(["low", "medium", "bright"]),
   humidity: oneOfOrNull(["low", "medium", "high"]),
+  // Home-view appearance — null clears to "auto".
+  plant_look: oneOfOrNull(["monstera", "fern", "palm", "banana", "cannabis"]),
+  pot_look: oneOfOrNull(["twotone", "terracotta", "teal", "rasta", "sand"]),
 };
 
 export async function PATCH(

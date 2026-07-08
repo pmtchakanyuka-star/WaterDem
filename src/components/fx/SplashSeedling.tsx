@@ -53,13 +53,11 @@ export default function SplashSeedling() {
           className="fixed inset-0 z-50 cursor-pointer overflow-hidden bg-[#14636b]"
           exit={{ opacity: 0, transition: { duration: 0.6, ease: "easeOut" } }}
         >
-          {/* the underwater living-room backdrop */}
+          {/* the underwater living-room backdrop (portrait on mobile, wide on
+              desktop — see .splash-bg in globals.css) */}
           <motion.div
-            className="absolute inset-[-2%] bg-cover"
-            style={{
-              backgroundImage: "url('/splash/underwater-living-room.webp')",
-              backgroundPosition: "center 46%",
-            }}
+            className="splash-bg absolute inset-[-2%] bg-cover"
+            style={{ backgroundPosition: "center 46%" }}
             initial={{ scale: 1.04 }}
             animate={{ scale: 1.09, x: "-1%", y: "-1.2%" }}
             transition={{ duration: 20, ease: "easeInOut", repeat: Infinity, repeatType: "reverse" }}

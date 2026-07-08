@@ -11,6 +11,7 @@ import {
   FlaskConical,
   Lightbulb,
   MapPin,
+  Palette,
   Sparkles,
   Sun,
   Thermometer,
@@ -387,6 +388,49 @@ export default function PlantDetailSheet({
             </select>
           </div>
         )}
+
+        {/* Home-view avatar — choose how this plant and its pot look in 3D. */}
+        <div className="flex flex-col gap-3 rounded-xl border border-glass-edge bg-[rgba(255,255,255,0.04)] px-4 py-3">
+          <span className="flex items-center gap-2 text-sm text-leaf-2nd">
+            <Palette className="size-4 text-sage" aria-hidden /> Look in your home
+          </span>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <label className="flex flex-col gap-1.5">
+              <span className="text-xs text-leaf-mut">Plant</span>
+              <select
+                value={plant.plant_look ?? ""}
+                disabled={busy}
+                onChange={(e) => patch({ plant_look: e.target.value === "" ? null : e.target.value })}
+                aria-label="Plant look in the 3D home"
+                className="w-full rounded-lg border border-glass-edge bg-[rgba(255,255,255,0.05)] px-3 py-2 text-sm text-leaf-100 outline-none focus-visible:outline-2 focus-visible:outline-sage [&>option]:bg-forest-900"
+              >
+                <option value="">Auto (from species)</option>
+                <option value="monstera">Monstera</option>
+                <option value="fern">Fern</option>
+                <option value="palm">Palm</option>
+                <option value="banana">Banana</option>
+                <option value="cannabis">Cannabis 🌿</option>
+              </select>
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className="text-xs text-leaf-mut">Pot</span>
+              <select
+                value={plant.pot_look ?? ""}
+                disabled={busy}
+                onChange={(e) => patch({ pot_look: e.target.value === "" ? null : e.target.value })}
+                aria-label="Pot look in the 3D home"
+                className="w-full rounded-lg border border-glass-edge bg-[rgba(255,255,255,0.05)] px-3 py-2 text-sm text-leaf-100 outline-none focus-visible:outline-2 focus-visible:outline-sage [&>option]:bg-forest-900"
+              >
+                <option value="">Auto</option>
+                <option value="twotone">Two-tone (teal + terracotta)</option>
+                <option value="terracotta">Terracotta</option>
+                <option value="teal">Teal</option>
+                <option value="rasta">Rasta (red · gold · green)</option>
+                <option value="sand">Sand</option>
+              </select>
+            </label>
+          </div>
+        </div>
 
         {editing && edits && (
           <div className="flex flex-col gap-4 rounded-xl border border-glass-edge bg-[rgba(255,255,255,0.04)] p-4">

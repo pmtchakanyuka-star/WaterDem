@@ -134,6 +134,17 @@ body {
   }
 }
 
+/* --- Splash backdrop (art-directed: portrait on mobile, wide on desktop) -- */
+
+.splash-bg {
+  background-image: url("/splash/underwater-living-room.webp");
+}
+@media (min-aspect-ratio: 1/1) {
+  .splash-bg {
+    background-image: url("/splash/underwater-living-room-wide.webp");
+  }
+}
+
 /* --- Scrollbar (subtle, botanical) --------------------------------------- */
 
 * {

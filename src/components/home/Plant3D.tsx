@@ -5,11 +5,11 @@ import { useFrame } from "@react-three/fiber";
 import { Html, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import { computeCountdown, type WaterStatus } from "@/lib/countdown";
-import { MODEL_PATH, modelNodeFor, isCannabis } from "@/lib/plantModels";
+import { MODEL_PATH, modelNodeForLook, isCannabis } from "@/lib/plantModels";
 import { normalizeModel } from "@/lib/modelUtils";
 import { CLAY, CLAY_ROUGH, RASTA } from "@/lib/clay";
 import ClayCannabis from "@/components/home/ClayCannabis";
-import type { Plant } from "@/lib/types";
+import type { Plant, PlantLook, PotLook } from "@/lib/types";
 
 /**
  * A potted plant in the 3D home: a two-tone clay pot on a saucer holding a real
@@ -27,25 +27,35 @@ const STATUS_RING: Record<WaterStatus, string> = {
 
 const TARGET_HEIGHT = 0.86;
 
-/** Two-tone teal/terracotta clay pot (default). */
-function TwoTonePot() {
+/** A two-band clay pot with a saucer and soil, coloured by look. */
+function ClayPot({
+  bottom,
+  top,
+  rim,
+  saucer,
+}: {
+  bottom: string;
+  top: string;
+  rim: string;
+  saucer: string;
+}) {
   return (
     <group>
       <mesh position={[0, 0.02, 0]} receiveShadow>
         <cylinderGeometry args={[0.2, 0.185, 0.035, 28]} />
-        <meshStandardMaterial color={CLAY.saucer} roughness={CLAY_ROUGH.clay} metalness={0} envMapIntensity={0.7} />
+        <meshStandardMaterial color={saucer} roughness={CLAY_ROUGH.clay} metalness={0} envMapIntensity={0.7} />
       </mesh>
       <mesh castShadow position={[0, 0.135, 0]}>
         <cylinderGeometry args={[0.172, 0.16, 0.19, 28]} />
-        <meshStandardMaterial color={CLAY.potTerracotta} roughness={CLAY_ROUGH.clay} metalness={0} envMapIntensity={0.7} />
+        <meshStandardMaterial color={bottom} roughness={CLAY_ROUGH.clay} metalness={0} envMapIntensity={0.7} />
       </mesh>
       <mesh castShadow position={[0, 0.3, 0]}>
         <cylinderGeometry args={[0.178, 0.172, 0.14, 28]} />
-        <meshStandardMaterial color={CLAY.potTeal} roughness={CLAY_ROUGH.clay} metalness={0} envMapIntensity={0.85} />
+        <meshStandardMaterial color={top} roughness={CLAY_ROUGH.clay} metalness={0} envMapIntensity={0.85} />
       </mesh>
       <mesh castShadow position={[0, 0.378, 0]}>
         <cylinderGeometry args={[0.186, 0.178, 0.03, 28]} />
-        <meshStandardMaterial color={CLAY.potTealRim} roughness={CLAY_ROUGH.clay} metalness={0} envMapIntensity={0.9} />
+        <meshStandardMaterial color={rim} roughness={CLAY_ROUGH.clay} metalness={0} envMapIntensity={0.9} />
       </mesh>
       <mesh position={[0, 0.378, 0]}>
         <cylinderGeometry args={[0.17, 0.17, 0.03, 28]} />
@@ -53,6 +63,23 @@ function TwoTonePot() {
       </mesh>
     </group>
   );
+}
+
+/** The pot for a given look. */
+function PotByLook({ pot }: { pot: PotLook }) {
+  switch (pot) {
+    case "rasta":
+      return <RastaPot />;
+    case "terracotta":
+      return <ClayPot bottom={CLAY.potTerracotta} top={CLAY.terracotta} rim={CLAY.terracottaSoft} saucer={CLAY.saucer} />;
+    case "teal":
+      return <ClayPot bottom={CLAY.teal} top={CLAY.tealSoft} rim={CLAY.potTealRim} saucer={CLAY.teal} />;
+    case "sand":
+      return <ClayPot bottom={CLAY.rugSand} top={CLAY.cream} rim={CLAY.creamSoft} saucer={CLAY.rugSand} />;
+    case "twotone":
+    default:
+      return <ClayPot bottom={CLAY.potTerracotta} top={CLAY.potTeal} rim={CLAY.potTealRim} saucer={CLAY.saucer} />;
+  }
 }
 
 /** Red/gold/green Rasta clay pot for the cannabis plant. */
@@ -135,8 +162,15 @@ export default function Plant3D({
   const group = useRef<THREE.Group>(null);
   const sway = useRef<THREE.Group>(null);
 
-  const cannabis = useMemo(() => isCannabis(plant), [plant]);
-  const nodeName = useMemo(() => modelNodeFor(plant), [plant]);
+  // The user's chosen look wins; otherwise auto (species, with cannabis-named
+  // plants defaulting to the cannabis look). Pot defaults to Rasta for cannabis.
+  const look = useMemo<PlantLook | null>(
+    () => plant.plant_look ?? (isCannabis(plant) ? "cannabis" : null),
+    [plant],
+  );
+  const cannabis = look === "cannabis";
+  const potLook: PotLook = plant.pot_look ?? (cannabis ? "rasta" : "twotone");
+  const nodeName = useMemo(() => modelNodeForLook(plant, look), [plant, look]);
   const model = useNormalizedModel(nodeName);
 
   const cd = useMemo(
@@ -191,8 +225,8 @@ export default function Plant3D({
       }}
       scale={hovered || selected ? 1.06 : 1}
     >
-      {/* pot: Rasta for cannabis, two-tone clay otherwise */}
-      {cannabis ? <RastaPot /> : <TwoTonePot />}
+      {/* pot: the chosen look (Rasta by default for cannabis) */}
+      <PotByLook pot={potLook} />
 
       {/* foliage: procedural clay cannabis, or the model on the soil */}
       <group ref={sway} position={[0, cannabis ? 0.41 : 0.39, 0]}>

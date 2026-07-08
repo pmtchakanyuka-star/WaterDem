@@ -1,4 +1,4 @@
-import type { Plant } from "@/lib/types";
+import type { Plant, PlantLook } from "@/lib/types";
 
 /**
  * The 15 real plant meshes inside /models/plants.glb (Tropical Plants Pack
@@ -56,4 +56,27 @@ export function modelNodeFor(plant: Pick<Plant, "id" | "name" | "species" | "com
 export function isCannabis(plant: Pick<Plant, "name" | "species" | "common_name">): boolean {
   const hay = `${plant.species ?? ""} ${plant.common_name ?? ""} ${plant.name}`.toLowerCase();
   return /(cannabis|marijuana|\bweed\b|ganja|\bhemp\b|\bkush\b|sativa|indica|reefer|spliff|\b420\b|mary ?jane|bomboclaat|bumboclaat|rasta)/.test(hay);
+}
+
+const POOLS: Record<Exclude<PlantLook, "cannabis">, string[]> = {
+  monstera: MONSTERA,
+  fern: FERN,
+  palm: PALM,
+  banana: BANANA,
+};
+
+/**
+ * The GLB node for a plant given an explicit look (from the user's choice). A
+ * null/"cannabis" look falls back to species-derived selection; the caller
+ * renders the procedural cannabis plant separately.
+ */
+export function modelNodeForLook(
+  plant: Pick<Plant, "id" | "name" | "species" | "common_name">,
+  look: PlantLook | null,
+): string {
+  if (look && look !== "cannabis") {
+    const pool = POOLS[look];
+    return pool[hash(plant.id) % pool.length];
+  }
+  return modelNodeFor(plant);
 }
