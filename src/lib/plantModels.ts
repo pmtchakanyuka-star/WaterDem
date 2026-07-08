@@ -39,10 +39,21 @@ function hash(s: string): number {
  */
 export function modelNodeFor(plant: Pick<Plant, "id" | "name" | "species" | "common_name">): string {
   const hay = `${plant.species ?? ""} ${plant.common_name ?? ""} ${plant.name}`.toLowerCase();
-  let pool = ALL_MODEL_NODES;
-  if (/monstera|cheese|philodendron|pothos|ivy|vine/.test(hay)) pool = MONSTERA;
-  else if (/fern|calathea|spider|chlorophytum|maidenhair|nephrolepis/.test(hay)) pool = FERN;
+  // Default to the lush monstera — it reads best in the clay style — and only
+  // switch to fern/palm/banana on a clear species match.
+  let pool = MONSTERA;
+  if (/fern|calathea|spider|chlorophytum|maidenhair|nephrolepis/.test(hay)) pool = FERN;
   else if (/palm|snake|sansevieria|dracaena|aloe|\bzz\b|yucca|cactus|succulent/.test(hay)) pool = PALM;
   else if (/banana|bird of paradise|strelitzia|rubber|ficus|elephant/.test(hay)) pool = BANANA;
   return pool[hash(plant.id) % pool.length];
+}
+
+/**
+ * A plant reads as cannabis when its name/species mentions it — so the user can
+ * make any plant a cannabis plant by naming it. Includes the ganja-culture slang
+ * that fits WaterDem's "put water pon dem tings" vibe.
+ */
+export function isCannabis(plant: Pick<Plant, "name" | "species" | "common_name">): boolean {
+  const hay = `${plant.species ?? ""} ${plant.common_name ?? ""} ${plant.name}`.toLowerCase();
+  return /(cannabis|marijuana|\bweed\b|ganja|\bhemp\b|\bkush\b|sativa|indica|reefer|spliff|\b420\b|mary ?jane|bomboclaat|bumboclaat|rasta)/.test(hay);
 }

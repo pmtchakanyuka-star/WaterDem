@@ -5,16 +5,18 @@ import { useFrame } from "@react-three/fiber";
 import { Html, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import { computeCountdown, type WaterStatus } from "@/lib/countdown";
-import { MODEL_PATH, modelNodeFor } from "@/lib/plantModels";
+import { MODEL_PATH, modelNodeFor, isCannabis } from "@/lib/plantModels";
 import { normalizeModel } from "@/lib/modelUtils";
-import { CLAY, CLAY_ROUGH } from "@/lib/clay";
+import { CLAY, CLAY_ROUGH, RASTA } from "@/lib/clay";
+import ClayCannabis from "@/components/home/ClayCannabis";
 import type { Plant } from "@/lib/types";
 
 /**
- * A potted plant in the 3D home: a glazed pot on a saucer holding a real
- * textured plant model (Tropical Plants Pack M02P by MozzarellaARC, CC-BY).
- * The model is normalized to sit in the pot, sways gently, tilts when thirsty,
- * and lifts on hover. Status shows through the tilt + a floor ring + label.
+ * A potted plant in the 3D home: a two-tone clay pot on a saucer holding a real
+ * textured plant model (Tropical Plants Pack M02P by MozzarellaARC, CC-BY),
+ * re-materialled to the soft-clay look. Cannabis-named plants get a procedural
+ * clay cannabis plant in a red/gold/green Rasta pot instead. Foliage sways,
+ * tilts when thirsty, and lifts on hover; status shows via a floor ring + label.
  */
 
 const STATUS_RING: Record<WaterStatus, string> = {
@@ -23,7 +25,67 @@ const STATUS_RING: Record<WaterStatus, string> = {
   overdue: "#f87171",
 };
 
-const TARGET_HEIGHT = 0.66;
+const TARGET_HEIGHT = 0.86;
+
+/** Two-tone teal/terracotta clay pot (default). */
+function TwoTonePot() {
+  return (
+    <group>
+      <mesh position={[0, 0.02, 0]} receiveShadow>
+        <cylinderGeometry args={[0.2, 0.185, 0.035, 28]} />
+        <meshStandardMaterial color={CLAY.saucer} roughness={CLAY_ROUGH.clay} metalness={0} envMapIntensity={0.7} />
+      </mesh>
+      <mesh castShadow position={[0, 0.135, 0]}>
+        <cylinderGeometry args={[0.172, 0.16, 0.19, 28]} />
+        <meshStandardMaterial color={CLAY.potTerracotta} roughness={CLAY_ROUGH.clay} metalness={0} envMapIntensity={0.7} />
+      </mesh>
+      <mesh castShadow position={[0, 0.3, 0]}>
+        <cylinderGeometry args={[0.178, 0.172, 0.14, 28]} />
+        <meshStandardMaterial color={CLAY.potTeal} roughness={CLAY_ROUGH.clay} metalness={0} envMapIntensity={0.85} />
+      </mesh>
+      <mesh castShadow position={[0, 0.378, 0]}>
+        <cylinderGeometry args={[0.186, 0.178, 0.03, 28]} />
+        <meshStandardMaterial color={CLAY.potTealRim} roughness={CLAY_ROUGH.clay} metalness={0} envMapIntensity={0.9} />
+      </mesh>
+      <mesh position={[0, 0.378, 0]}>
+        <cylinderGeometry args={[0.17, 0.17, 0.03, 28]} />
+        <meshStandardMaterial color={CLAY.soil} roughness={1} />
+      </mesh>
+    </group>
+  );
+}
+
+/** Red/gold/green Rasta clay pot for the cannabis plant. */
+function RastaPot() {
+  return (
+    <group>
+      <mesh position={[0, 0.02, 0]} receiveShadow>
+        <cylinderGeometry args={[0.2, 0.185, 0.035, 28]} />
+        <meshStandardMaterial color={RASTA.green} roughness={CLAY_ROUGH.clay} metalness={0} envMapIntensity={0.7} />
+      </mesh>
+      <mesh castShadow position={[0, 0.1, 0]}>
+        <cylinderGeometry args={[0.168, 0.16, 0.14, 28]} />
+        <meshStandardMaterial color={RASTA.red} roughness={CLAY_ROUGH.clay} metalness={0} envMapIntensity={0.7} />
+      </mesh>
+      <mesh castShadow position={[0, 0.225, 0]}>
+        <cylinderGeometry args={[0.176, 0.168, 0.12, 28]} />
+        <meshStandardMaterial color={RASTA.gold} roughness={CLAY_ROUGH.clay} metalness={0} envMapIntensity={0.8} />
+      </mesh>
+      <mesh castShadow position={[0, 0.33, 0]}>
+        <cylinderGeometry args={[0.184, 0.176, 0.11, 28]} />
+        <meshStandardMaterial color={RASTA.green} roughness={CLAY_ROUGH.clay} metalness={0} envMapIntensity={0.85} />
+      </mesh>
+      <mesh castShadow position={[0, 0.393, 0]}>
+        <cylinderGeometry args={[0.19, 0.184, 0.03, 28]} />
+        <meshStandardMaterial color={RASTA.green} roughness={CLAY_ROUGH.clay} metalness={0} envMapIntensity={0.9} />
+      </mesh>
+      <mesh position={[0, 0.393, 0]}>
+        <cylinderGeometry args={[0.176, 0.176, 0.03, 28]} />
+        <meshStandardMaterial color={CLAY.soil} roughness={1} />
+      </mesh>
+    </group>
+  );
+}
 
 function useNormalizedModel(nodeName: string) {
   const { nodes } = useGLTF(MODEL_PATH) as unknown as {
@@ -33,16 +95,17 @@ function useNormalizedModel(nodeName: string) {
     const src = nodes[nodeName];
     if (!src) return null;
     const group = normalizeModel(src, TARGET_HEIGHT);
-    // Push the foliage toward the approved soft-clay look: fresher green with a
-    // gentle waxy sheen (mid roughness + a touch of env reflection), no metal.
+    // Soft-clay look: keep the model's own green (tinting muddied it), just add a
+    // gentle waxy sheen and a faint emissive lift so leaves read fresh, not dark.
     group.traverse((o) => {
       const mesh = o as THREE.Mesh;
       const mat = mesh.material as THREE.MeshStandardMaterial | undefined;
       if (mesh.isMesh && mat && "roughness" in mat) {
         mat.roughness = CLAY_ROUGH.waxy;
         mat.metalness = 0;
-        mat.envMapIntensity = 1.1;
-        mat.color.lerp(new THREE.Color(CLAY.leaf), 0.22);
+        mat.envMapIntensity = 1;
+        mat.emissive = new THREE.Color(CLAY.leafDeep);
+        mat.emissiveIntensity = 0.12;
         mat.needsUpdate = true;
       }
     });
@@ -72,6 +135,7 @@ export default function Plant3D({
   const group = useRef<THREE.Group>(null);
   const sway = useRef<THREE.Group>(null);
 
+  const cannabis = useMemo(() => isCannabis(plant), [plant]);
   const nodeName = useMemo(() => modelNodeFor(plant), [plant]);
   const model = useNormalizedModel(nodeName);
 
@@ -127,32 +191,12 @@ export default function Plant3D({
       }}
       scale={hovered || selected ? 1.06 : 1}
     >
-      {/* two-tone clay pot: terracotta base, teal band, small saucer */}
-      <mesh position={[0, 0.02, 0]} receiveShadow>
-        <cylinderGeometry args={[0.2, 0.185, 0.035, 28]} />
-        <meshStandardMaterial color={CLAY.saucer} roughness={CLAY_ROUGH.clay} metalness={0} envMapIntensity={0.7} />
-      </mesh>
-      <mesh castShadow position={[0, 0.135, 0]}>
-        <cylinderGeometry args={[0.172, 0.16, 0.19, 28]} />
-        <meshStandardMaterial color={CLAY.potTerracotta} roughness={CLAY_ROUGH.clay} metalness={0} envMapIntensity={0.7} />
-      </mesh>
-      <mesh castShadow position={[0, 0.3, 0]}>
-        <cylinderGeometry args={[0.178, 0.172, 0.14, 28]} />
-        <meshStandardMaterial color={CLAY.potTeal} roughness={CLAY_ROUGH.clay} metalness={0} envMapIntensity={0.85} />
-      </mesh>
-      <mesh castShadow position={[0, 0.378, 0]}>
-        <cylinderGeometry args={[0.186, 0.178, 0.03, 28]} />
-        <meshStandardMaterial color={CLAY.potTealRim} roughness={CLAY_ROUGH.clay} metalness={0} envMapIntensity={0.9} />
-      </mesh>
-      {/* soil */}
-      <mesh position={[0, 0.378, 0]}>
-        <cylinderGeometry args={[0.17, 0.17, 0.03, 28]} />
-        <meshStandardMaterial color={CLAY.soil} roughness={1} />
-      </mesh>
+      {/* pot: Rasta for cannabis, two-tone clay otherwise */}
+      {cannabis ? <RastaPot /> : <TwoTonePot />}
 
-      {/* the real plant model, normalized to sit on the soil */}
-      <group ref={sway} position={[0, 0.39, 0]}>
-        {model && <primitive object={model} />}
+      {/* foliage: procedural clay cannabis, or the model on the soil */}
+      <group ref={sway} position={[0, cannabis ? 0.41 : 0.39, 0]}>
+        {cannabis ? <ClayCannabis /> : model && <primitive object={model} />}
       </group>
 
       {/* soft status ring on the floor */}

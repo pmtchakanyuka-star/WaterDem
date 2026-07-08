@@ -40,3 +40,10 @@ export const CLAY_ROUGH = {
   clay: 0.5,
   waxy: 0.4,
 } as const;
+
+/** Rastafari tricolour for the cannabis plant's pot. */
+export const RASTA = {
+  red: "#cf3a2f",
+  gold: "#eab12f",
+  green: "#2f9e4f",
+} as const;
