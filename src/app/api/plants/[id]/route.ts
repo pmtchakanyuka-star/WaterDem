@@ -10,11 +10,23 @@ export const runtime = "nodejs";
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+// Nullable text fields accept an empty string as "clear it" (-> null).
+const nullableText = (max: number) => (v: unknown) => {
+  if (v === null) return null;
+  if (typeof v !== "string") return undefined;
+  const t = v.trim();
+  return t ? t.slice(0, max) : null;
+};
+const oneOfOrNull = (allowed: readonly string[]) => (v: unknown) => {
+  if (v === null || v === "") return null;
+  return typeof v === "string" && allowed.includes(v) ? v : undefined;
+};
+
 /**
  * Editable fields and their validators. RLS enforces ownership.
- * water_freq_days is deliberately NOT editable — the watering schedule is
- * the AI botanist's advisory (set at identification, adapted weekly by
- * weather), never user input.
+ * `room` and `water_freq_days` are NOT here — `room` is validated against the
+ * owner's chosen spaces below, and the watering schedule is the AI botanist's
+ * weather-adapted advisory (changed via re-plan), never a free number.
  */
 const EDITABLE: Record<string, (v: unknown) => unknown | undefined> = {
   name: (v) =>
@@ -22,6 +34,13 @@ const EDITABLE: Record<string, (v: unknown) => unknown | undefined> = {
   is_public: (v) => (typeof v === "boolean" ? v : undefined),
   icon_key: (v) =>
     typeof v === "string" && v.trim() ? v.trim().slice(0, 40) : undefined,
+  species: nullableText(120),
+  common_name: nullableText(120),
+  soil_check: nullableText(500),
+  weather_note: nullableText(500),
+  care_level: oneOfOrNull(["easy", "moderate", "expert"]),
+  light: oneOfOrNull(["low", "medium", "bright"]),
+  humidity: oneOfOrNull(["low", "medium", "high"]),
 };
 
 export async function PATCH(

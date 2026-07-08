@@ -10,6 +10,7 @@ import {
   EyeOff,
   FlaskConical,
   Lightbulb,
+  MapPin,
   Sparkles,
   Sun,
   Thermometer,
@@ -23,7 +24,15 @@ import PlantIcon from "@/components/garden/PlantIcon";
 import PetSafetyBadge from "@/components/garden/PetSafetyBadge";
 import WaterArc from "@/components/garden/WaterArc";
 import { useToast } from "@/components/Toast";
-import type { Advice, Plant, Weather } from "@/lib/types";
+import { ROOMS, type RoomKey } from "@/lib/home";
+import type {
+  Advice,
+  CareLevel,
+  HumidityLevel,
+  LightLevel,
+  Plant,
+  Weather,
+} from "@/lib/types";
 
 /**
  * Full plant profile: care details as varied glass rows (not identical
@@ -42,11 +51,64 @@ const HUMIDITY_LABEL: Record<string, string> = {
   high: "Loves humid air (50–70%) — consider misting",
 };
 
+/** A glass-styled select for the edit form. */
+function EditSelect({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  options: { value: string; label: string }[];
+}) {
+  return (
+    <label className="flex flex-col gap-1.5">
+      <span className="text-sm font-medium text-leaf-2nd">{label}</span>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full rounded-xl border border-glass-edge bg-[rgba(255,255,255,0.05)] px-4 py-2.5 text-leaf-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.10)] backdrop-blur-xl outline-none focus-visible:outline-2 focus-visible:outline-sage focus-visible:outline-offset-2 [&>option]:bg-forest-900"
+      >
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+type Edits = {
+  name: string;
+  species: string;
+  common_name: string;
+  light: LightLevel | "";
+  humidity: HumidityLevel | "";
+  care_level: CareLevel | "";
+  soil_check: string;
+};
+
+function editsFromPlant(p: Plant): Edits {
+  return {
+    name: p.name,
+    species: p.species ?? "",
+    common_name: p.common_name ?? "",
+    light: p.light ?? "",
+    humidity: p.humidity ?? "",
+    care_level: p.care_level ?? "",
+    soil_check: p.soil_check ?? "",
+  };
+}
+
 export default function PlantDetailSheet({
   plant,
   weather,
   weatherFactor = 1,
   weeklyNudge = "",
+  homeSpaces = [],
   onClose,
   onWater,
   onUpdated,
@@ -56,6 +118,7 @@ export default function PlantDetailSheet({
   weather: Weather | null;
   weatherFactor?: number;
   weeklyNudge?: string;
+  homeSpaces?: RoomKey[];
   onClose: () => void;
   onWater: (plant: Plant) => void;
   onUpdated: (plant: Plant) => void;
@@ -64,7 +127,7 @@ export default function PlantDetailSheet({
   const { toast } = useToast();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [editing, setEditing] = useState(false);
-  const [editName, setEditName] = useState("");
+  const [edits, setEdits] = useState<Edits | null>(null);
   const [history, setHistory] = useState<{ id: string; watered_at: string }[]>([]);
   const [advice, setAdvice] = useState<Advice | null>(null);
   const [adviceLoading, setAdviceLoading] = useState(false);
@@ -77,7 +140,7 @@ export default function PlantDetailSheet({
     setAdvice(null);
     setHistory([]);
     if (plant) {
-      setEditName(plant.name);
+      setEdits(editsFromPlant(plant));
       fetch(`/api/plants/${plant.id}/water`)
         .then((r) => (r.ok ? r.json() : { logs: [] }))
         .then((d) => setHistory(d.logs ?? []))
@@ -111,11 +174,25 @@ export default function PlantDetailSheet({
   };
 
   const saveEdits = async () => {
-    if (!editName.trim()) {
+    if (!edits || !plant) return;
+    if (!edits.name.trim()) {
       toast("error", "Your plant needs a name.");
       return;
     }
-    const updated = await patch({ name: editName });
+    // Send only fields that changed. Empty select/text -> null (clears it);
+    // room "" -> null (unplace). Server validates room against home_spaces.
+    const changed: Record<string, unknown> = {};
+    const cur = editsFromPlant(plant);
+    (Object.keys(edits) as (keyof Edits)[]).forEach((k) => {
+      if (edits[k] !== cur[k]) {
+        changed[k] = edits[k] === "" ? null : edits[k];
+      }
+    });
+    if (Object.keys(changed).length === 0) {
+      setEditing(false);
+      return;
+    }
+    const updated = await patch(changed);
     if (updated) {
       setEditing(false);
       toast("success", "Saved.");
@@ -286,21 +363,103 @@ export default function PlantDetailSheet({
           </div>
         </div>
 
-        {editing && (
+        {/* One-tap placement — visible without entering edit mode. */}
+        {homeSpaces.length > 0 && (
+          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-glass-edge bg-[rgba(255,255,255,0.04)] px-4 py-3">
+            <span className="flex items-center gap-2 text-sm text-leaf-2nd">
+              <MapPin className="size-4 text-sage" aria-hidden /> Room
+            </span>
+            <select
+              value={plant.room ?? ""}
+              disabled={busy}
+              onChange={(e) =>
+                patch({ room: e.target.value === "" ? null : e.target.value })
+              }
+              aria-label="Which room this plant lives in"
+              className="min-w-40 flex-1 rounded-lg border border-glass-edge bg-[rgba(255,255,255,0.05)] px-3 py-2 text-sm text-leaf-100 outline-none focus-visible:outline-2 focus-visible:outline-sage [&>option]:bg-forest-900"
+            >
+              <option value="">Not in a room</option>
+              {homeSpaces.map((r) => (
+                <option key={r} value={r}>
+                  {ROOMS[r].label}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {editing && edits && (
           <div className="flex flex-col gap-4 rounded-xl border border-glass-edge bg-[rgba(255,255,255,0.04)] p-4">
             <GlassInput
               label="Name"
-              value={editName}
-              onChange={(e) => setEditName(e.target.value)}
-              hint="The watering schedule isn't editable — if it seems off, ask the botanist to re-plan below."
+              value={edits.name}
+              onChange={(e) => setEdits({ ...edits, name: e.target.value })}
             />
+
+            <GlassInput
+              label="Species"
+              placeholder="e.g. Monstera deliciosa"
+              value={edits.species}
+              onChange={(e) => setEdits({ ...edits, species: e.target.value })}
+            />
+            <GlassInput
+              label="Also known as"
+              placeholder="common name"
+              value={edits.common_name}
+              onChange={(e) => setEdits({ ...edits, common_name: e.target.value })}
+            />
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <EditSelect
+                label="Light"
+                value={edits.light}
+                onChange={(v) => setEdits({ ...edits, light: v as LightLevel | "" })}
+                options={[
+                  { value: "", label: "—" },
+                  { value: "low", label: "Low" },
+                  { value: "medium", label: "Medium" },
+                  { value: "bright", label: "Bright" },
+                ]}
+              />
+              <EditSelect
+                label="Humidity"
+                value={edits.humidity}
+                onChange={(v) => setEdits({ ...edits, humidity: v as HumidityLevel | "" })}
+                options={[
+                  { value: "", label: "—" },
+                  { value: "low", label: "Low" },
+                  { value: "medium", label: "Medium" },
+                  { value: "high", label: "High" },
+                ]}
+              />
+              <EditSelect
+                label="Care level"
+                value={edits.care_level}
+                onChange={(v) => setEdits({ ...edits, care_level: v as CareLevel | "" })}
+                options={[
+                  { value: "", label: "—" },
+                  { value: "easy", label: "Easy" },
+                  { value: "moderate", label: "Moderate" },
+                  { value: "expert", label: "Expert" },
+                ]}
+              />
+            </div>
+
+            <GlassInput
+              label="When to water"
+              placeholder="e.g. when the top 2cm of soil is dry"
+              value={edits.soil_check}
+              onChange={(e) => setEdits({ ...edits, soil_check: e.target.value })}
+              hint="The watering schedule itself is the botanist's — ask it to re-plan if that seems off."
+            />
+
             <div className="flex flex-wrap items-center gap-2.5">
               <GlassButton
                 variant="primary"
                 size="sm"
                 onClick={saveEdits}
                 loading={busy}
-                disabled={!editName.trim()}
+                disabled={!edits.name.trim()}
               >
                 Save changes
               </GlassButton>

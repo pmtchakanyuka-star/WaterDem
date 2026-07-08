@@ -99,11 +99,6 @@ function GardenInner({
     setSelected((s) => (s?.id === updated.id ? updated : s));
   }, []);
 
-  const updatePlant2 = useCallback((id: string, partial: Partial<Plant>) => {
-    setPlants((ps) => ps.map((p) => (p.id === id ? { ...p, ...partial } : p)));
-    setSelected((s) => (s?.id === id ? { ...s, ...partial } : s));
-  }, []);
-
   const water = useCallback(
     async (plant: Plant) => {
       const prevLastWatered = plant.last_watered;
@@ -136,23 +131,6 @@ function GardenInner({
       });
     },
     [toast, updatePlant],
-  );
-
-  const assignRoom = useCallback(
-    async (plantId: string, room: RoomKey) => {
-      const prev = plants.find((p) => p.id === plantId)?.room ?? null;
-      updatePlant2(plantId, { room }); // optimistic
-      const res = await fetch(`/api/plants/${plantId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ room }),
-      }).catch(() => null);
-      if (!res?.ok) {
-        updatePlant2(plantId, { room: prev });
-        toast("error", "Couldn't move that plant — try again.");
-      }
-    },
-    [plants, toast], // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   const changeSpaces = useCallback(
@@ -282,7 +260,6 @@ function GardenInner({
             weatherFactor={wx.factor}
             saving={savingSpaces}
             onSelect={setSelected}
-            onAssign={assignRoom}
             onSpacesChange={changeSpaces}
             onFallback={() => {
               switchView("grid");
@@ -365,6 +342,7 @@ function GardenInner({
         weather={wx.weather}
         weatherFactor={wx.factor}
         weeklyNudge={wx.nudge}
+        homeSpaces={homeSpaces}
         onClose={() => setSelected(null)}
         onWater={water}
         onUpdated={updatePlant}

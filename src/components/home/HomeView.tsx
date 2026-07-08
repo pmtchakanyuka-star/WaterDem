@@ -47,7 +47,6 @@ export default function HomeView({
   weatherFactor,
   saving,
   onSelect,
-  onAssign,
   onSpacesChange,
   onFallback,
 }: {
@@ -56,7 +55,6 @@ export default function HomeView({
   weatherFactor: number;
   saving: boolean;
   onSelect: (plant: Plant) => void;
-  onAssign: (plantId: string, room: RoomKey) => void;
   onSpacesChange: (spaces: RoomKey[]) => void;
   onFallback: () => void;
 }) {
@@ -157,7 +155,7 @@ export default function HomeView({
         </div>
       </div>
 
-      <UnplacedTray plants={unplaced} spaces={homeSpaces} onAssign={onAssign} />
+      <UnplacedTray plants={unplaced} onOpen={select} />
     </div>
   );
 }
