@@ -229,11 +229,13 @@ export default function AddPlantSheet({
               </>
             )}
           </button>
+          {/* No `capture` attribute — that forces the camera on mobile and
+              hides the gallery. Without it the native picker offers both
+              "take photo" and "choose from library". */}
           <input
             ref={fileRef}
             type="file"
             accept="image/*"
-            capture="environment"
             hidden
             onChange={pickPhoto}
           />

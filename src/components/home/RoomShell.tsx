@@ -30,7 +30,7 @@ export default function RoomShell({ room }: { room: RoomKey }) {
 
   return (
     <group>
-      {/* floor */}
+      {/* floor — polished, so it catches a soft reflection (less "flat") */}
       <RoundedBox
         args={[W, 0.14, W]}
         radius={0.04}
@@ -38,7 +38,12 @@ export default function RoomShell({ room }: { room: RoomKey }) {
         position={[0, -0.07, 0]}
         receiveShadow
       >
-        <meshStandardMaterial color={t.floor} roughness={0.85} />
+        <meshStandardMaterial
+          color={t.floor}
+          roughness={isBalcony ? 0.75 : 0.38}
+          metalness={0.06}
+          envMapIntensity={0.9}
+        />
       </RoundedBox>
 
       {/* rug — a soft accent circle */}
@@ -64,27 +69,46 @@ export default function RoomShell({ room }: { room: RoomKey }) {
       ) : (
         <mesh position={[0, WALL_H / 2 - 0.07, -half]} receiveShadow>
           <boxGeometry args={[W, WALL_H, WALL_T]} />
-          <meshStandardMaterial color={t.wallBack} roughness={0.95} />
+          <meshStandardMaterial color={t.wallBack} roughness={0.88} envMapIntensity={0.25} />
         </mesh>
       )}
 
       {/* left wall (-x) */}
       <mesh position={[-half, WALL_H / 2 - 0.07, 0]} receiveShadow>
         <boxGeometry args={[WALL_T, WALL_H, W]} />
-        <meshStandardMaterial color={t.wallLeft} roughness={0.95} />
+        <meshStandardMaterial color={t.wallLeft} roughness={0.88} envMapIntensity={0.25} />
       </mesh>
 
       {/* window on the back wall (skip balcony — it's open air) */}
       {!isBalcony && (
-        <mesh position={[0.55, 1.15, -half + WALL_T / 2 + 0.01]}>
-          <planeGeometry args={[1.05, 0.85]} />
-          <meshStandardMaterial
-            color={t.window}
-            emissive={t.window}
-            emissiveIntensity={0.35}
-            roughness={0.4}
-          />
-        </mesh>
+        <group position={[0.55, 1.15, -half + WALL_T / 2 + 0.01]}>
+          {/* frame */}
+          <mesh position={[0, 0, -0.005]}>
+            <planeGeometry args={[1.18, 0.98]} />
+            <meshStandardMaterial color="#efe7d5" roughness={0.7} />
+          </mesh>
+          {/* glossy glass with daylight glow */}
+          <mesh>
+            <planeGeometry args={[1.05, 0.85]} />
+            <meshStandardMaterial
+              color={t.window}
+              emissive={t.window}
+              emissiveIntensity={0.5}
+              roughness={0.08}
+              metalness={0.2}
+              envMapIntensity={1.4}
+            />
+          </mesh>
+          {/* muntin bars */}
+          <mesh position={[0, 0, 0.006]}>
+            <boxGeometry args={[0.03, 0.85, 0.01]} />
+            <meshStandardMaterial color="#efe7d5" roughness={0.7} />
+          </mesh>
+          <mesh position={[0, 0, 0.006]}>
+            <boxGeometry args={[1.05, 0.03, 0.01]} />
+            <meshStandardMaterial color="#efe7d5" roughness={0.7} />
+          </mesh>
+        </group>
       )}
     </group>
   );

@@ -29,9 +29,9 @@ function LivingRoom() {
           <meshStandardMaterial color="#7d9c93" roughness={0.9} />
         </RoundedBox>
       </group>
-      {/* coffee table */}
-      <RoundedBox args={[0.7, 0.06, 0.5]} radius={0.02} smoothness={2} position={[0.95, 0.36, 0.45]} castShadow>
-        <meshStandardMaterial color="#a9835c" roughness={0.6} />
+      {/* coffee table — glossy lacquered top */}
+      <RoundedBox args={[0.7, 0.06, 0.5]} radius={0.02} smoothness={3} position={[0.95, 0.36, 0.45]} castShadow>
+        <meshStandardMaterial color="#a9835c" roughness={0.25} metalness={0.1} envMapIntensity={1.1} />
       </RoundedBox>
       <Shelf x={-0.8} y={0.86} z={-0.95} />
     </group>
@@ -45,9 +45,9 @@ function Kitchen() {
       <RoundedBox args={[2.6, 0.9, 0.5]} radius={0.03} smoothness={2} position={[-0.15, 0.45, -0.95]} castShadow>
         <meshStandardMaterial color="#dcd3c2" roughness={0.8} />
       </RoundedBox>
-      {/* counter top */}
-      <RoundedBox args={[2.7, 0.06, 0.54]} radius={0.02} smoothness={2} position={[-0.15, 0.94, -0.94]} castShadow>
-        <meshStandardMaterial color="#8a7f6c" roughness={0.5} />
+      {/* counter top — polished stone */}
+      <RoundedBox args={[2.7, 0.06, 0.54]} radius={0.02} smoothness={3} position={[-0.15, 0.94, -0.94]} castShadow>
+        <meshStandardMaterial color="#8a7f6c" roughness={0.18} metalness={0.15} envMapIntensity={1.2} />
       </RoundedBox>
       {/* upper cabinets */}
       <RoundedBox args={[2.6, 0.5, 0.3]} radius={0.03} smoothness={2} position={[-0.15, 1.6, -1.05]} castShadow>
@@ -88,11 +88,11 @@ function Bathroom() {
       {/* tub */}
       <group position={[0.55, 0, -0.75]}>
         <RoundedBox args={[1.7, 0.55, 0.85]} radius={0.12} smoothness={4} position={[0, 0.3, 0]} castShadow>
-          <meshStandardMaterial color="#eef4f4" roughness={0.35} />
+          <meshStandardMaterial color="#eef4f4" roughness={0.12} metalness={0.1} envMapIntensity={1.3} />
         </RoundedBox>
         <mesh position={[0, 0.46, 0]}>
           <boxGeometry args={[1.4, 0.06, 0.6]} />
-          <meshStandardMaterial color="#bfe0e6" transparent opacity={0.7} roughness={0.2} />
+          <meshStandardMaterial color="#bfe0e6" transparent opacity={0.65} roughness={0.05} metalness={0.2} envMapIntensity={1.5} />
         </mesh>
       </group>
       {/* bath mat */}

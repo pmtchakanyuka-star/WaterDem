@@ -2,7 +2,13 @@
 
 import { useEffect } from "react";
 import { Canvas, invalidate } from "@react-three/fiber";
-import { ContactShadows, OrbitControls } from "@react-three/drei";
+import {
+  ContactShadows,
+  Environment,
+  Lightformer,
+  OrbitControls,
+} from "@react-three/drei";
+import * as THREE from "three";
 import RoomShell from "@/components/home/RoomShell";
 import RoomFurniture from "@/components/home/rooms";
 import Plant3D from "@/components/home/Plant3D";
@@ -40,9 +46,8 @@ export default function HomeScene({
 }) {
   const offsets = offsetsFor(rooms.length);
 
-  // Render on demand: kick a frame whenever interaction state or plant data
-  // changes (hover, selection, watering, room placement). OrbitControls
-  // invalidates on its own while dragging.
+  // Motion users get a continuous loop so plants breathe; reduced-motion users
+  // get on-demand rendering (kicked when state changes) with static plants.
   useEffect(() => {
     invalidate();
   }, [hoveredId, selectedId, plants, rooms, weatherFactor]);
@@ -50,29 +55,44 @@ export default function HomeScene({
   return (
     <Canvas
       shadows
-      frameloop="demand"
+      frameloop={reduceMotion ? "demand" : "always"}
       dpr={[1, 1.75]}
       camera={{ position: [7, 5.5, 7], fov: 32 }}
-      gl={{ antialias: true, powerPreference: "high-performance" }}
+      gl={{
+        antialias: true,
+        powerPreference: "high-performance",
+        toneMapping: THREE.ACESFilmicToneMapping,
+      }}
       onPointerMissed={() => onHover(null)}
     >
       <color attach="background" args={["#081c0e"]} />
-      <fog attach="fog" args={["#081c0e", 14, 26]} />
+      <fog attach="fog" args={["#081c0e", 15, 28]} />
 
-      <ambientLight intensity={0.75} />
-      <hemisphereLight args={["#fff4e0", "#20301f", 0.6]} />
+      <ambientLight intensity={0.5} />
+      <hemisphereLight args={["#fff4e0", "#1c2a1b", 0.55]} />
       <directionalLight
         position={[6, 9, 5]}
-        intensity={1.15}
+        intensity={1.25}
         castShadow
         shadow-mapSize-width={1024}
         shadow-mapSize-height={1024}
+        shadow-bias={-0.0002}
         shadow-camera-far={30}
         shadow-camera-left={-8}
         shadow-camera-right={8}
         shadow-camera-top={8}
         shadow-camera-bottom={-8}
       />
+      {/* a soft cool fill from the opposite side to round out the forms */}
+      <directionalLight position={[-5, 4, -3]} intensity={0.35} color="#cfe8ff" />
+
+      {/* Procedural environment (no external HDR) — gives surfaces real
+          reflections so glazed pots and floors read as glossy, not flat. */}
+      <Environment resolution={128}>
+        <Lightformer intensity={2.2} position={[0, 5, 2]} scale={[8, 8, 1]} color="#fff3dd" />
+        <Lightformer intensity={0.9} position={[-4, 2, 3]} scale={[3, 6, 1]} color="#eaf6ff" />
+        <Lightformer intensity={0.7} position={[4, 1, -3]} scale={[4, 4, 1]} color="#dff5e6" />
+      </Environment>
 
       {rooms.map((room, i) => {
         const roomPlants = plants
