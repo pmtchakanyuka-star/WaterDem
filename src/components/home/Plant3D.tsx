@@ -7,6 +7,7 @@ import * as THREE from "three";
 import { computeCountdown, type WaterStatus } from "@/lib/countdown";
 import { MODEL_PATH, modelNodeFor } from "@/lib/plantModels";
 import { normalizeModel } from "@/lib/modelUtils";
+import { CLAY, CLAY_ROUGH } from "@/lib/clay";
 import type { Plant } from "@/lib/types";
 
 /**
@@ -30,7 +31,22 @@ function useNormalizedModel(nodeName: string) {
   };
   return useMemo(() => {
     const src = nodes[nodeName];
-    return src ? normalizeModel(src, TARGET_HEIGHT) : null;
+    if (!src) return null;
+    const group = normalizeModel(src, TARGET_HEIGHT);
+    // Push the foliage toward the approved soft-clay look: fresher green with a
+    // gentle waxy sheen (mid roughness + a touch of env reflection), no metal.
+    group.traverse((o) => {
+      const mesh = o as THREE.Mesh;
+      const mat = mesh.material as THREE.MeshStandardMaterial | undefined;
+      if (mesh.isMesh && mat && "roughness" in mat) {
+        mat.roughness = CLAY_ROUGH.waxy;
+        mat.metalness = 0;
+        mat.envMapIntensity = 1.1;
+        mat.color.lerp(new THREE.Color(CLAY.leaf), 0.22);
+        mat.needsUpdate = true;
+      }
+    });
+    return group;
   }, [nodes, nodeName]);
 }
 
@@ -111,28 +127,31 @@ export default function Plant3D({
       }}
       scale={hovered || selected ? 1.06 : 1}
     >
-      {/* saucer */}
-      <mesh position={[0, 0.015, 0]} receiveShadow>
-        <cylinderGeometry args={[0.17, 0.16, 0.03, 20]} />
-        <meshStandardMaterial color="#a06a48" roughness={0.5} metalness={0.05} />
+      {/* two-tone clay pot: terracotta base, teal band, small saucer */}
+      <mesh position={[0, 0.02, 0]} receiveShadow>
+        <cylinderGeometry args={[0.2, 0.185, 0.035, 28]} />
+        <meshStandardMaterial color={CLAY.saucer} roughness={CLAY_ROUGH.clay} metalness={0} envMapIntensity={0.7} />
       </mesh>
-      {/* glazed pot */}
-      <mesh castShadow position={[0, 0.16, 0]}>
-        <cylinderGeometry args={[0.155, 0.11, 0.28, 20]} />
-        <meshStandardMaterial color="#c67a52" roughness={0.3} metalness={0.12} envMapIntensity={1.1} />
+      <mesh castShadow position={[0, 0.135, 0]}>
+        <cylinderGeometry args={[0.172, 0.16, 0.19, 28]} />
+        <meshStandardMaterial color={CLAY.potTerracotta} roughness={CLAY_ROUGH.clay} metalness={0} envMapIntensity={0.7} />
       </mesh>
       <mesh castShadow position={[0, 0.3, 0]}>
-        <cylinderGeometry args={[0.17, 0.16, 0.05, 20]} />
-        <meshStandardMaterial color="#b56b46" roughness={0.28} metalness={0.14} envMapIntensity={1.2} />
+        <cylinderGeometry args={[0.178, 0.172, 0.14, 28]} />
+        <meshStandardMaterial color={CLAY.potTeal} roughness={CLAY_ROUGH.clay} metalness={0} envMapIntensity={0.85} />
+      </mesh>
+      <mesh castShadow position={[0, 0.378, 0]}>
+        <cylinderGeometry args={[0.186, 0.178, 0.03, 28]} />
+        <meshStandardMaterial color={CLAY.potTealRim} roughness={CLAY_ROUGH.clay} metalness={0} envMapIntensity={0.9} />
       </mesh>
       {/* soil */}
-      <mesh position={[0, 0.315, 0]}>
-        <cylinderGeometry args={[0.15, 0.15, 0.03, 20]} />
-        <meshStandardMaterial color="#40301f" roughness={1} />
+      <mesh position={[0, 0.378, 0]}>
+        <cylinderGeometry args={[0.17, 0.17, 0.03, 28]} />
+        <meshStandardMaterial color={CLAY.soil} roughness={1} />
       </mesh>
 
       {/* the real plant model, normalized to sit on the soil */}
-      <group ref={sway} position={[0, 0.33, 0]}>
+      <group ref={sway} position={[0, 0.39, 0]}>
         {model && <primitive object={model} />}
       </group>
 

@@ -21,19 +21,23 @@ tactile glassmorphism over a living forest gradient.
 A Grid ↔ Home toggle on the garden. The Three.js bundle is lazy-loaded
 (`next/dynamic`, `ssr:false`) so it only downloads when the Home view opens —
 the grid's first-load JS is unchanged. Rooms and furniture are procedural
-low-poly geometry with procedural wood/tile floor textures and daylight windows
-(painted on-canvas, no network assets); the plants themselves are real textured
-3D models (see Credits). The camera orbits and pinch-zooms. `frameloop="always"`
-gives plants continuous micro-motion when motion is allowed and `"demand"` under
-reduced-motion; it falls back to the grid when WebGL is unavailable or a render
-error occurs.
+low-poly geometry in a soft "claymation" style (a shared clay palette in
+`src/lib/clay.ts`: fresh green plants, two-tone teal/terracotta pots, warm
+rustic wood and cream), with procedural wood/tile floor textures and daylight
+windows (painted on-canvas, no network assets); the plants themselves are real
+textured 3D models (see Credits) re-materialled to the clay look. The camera
+orbits and pinch-zooms. `frameloop="always"` gives plants continuous micro-motion
+when motion is allowed and `"demand"` under reduced-motion; it falls back to the
+grid when WebGL is unavailable or a render error occurs.
 
 The plant models live in a single web-optimized GLB (`public/models/plants.glb`,
 ~3.6 MB — WebP textures, leaf alpha cutout, ground removed) built from the
 source FBX pack; `src/lib/plantModels.ts` maps each user plant to the closest
-species model. The session splash (`components/fx/Splash3DScene.tsx`) grows one
-of these models out of a pot while a watering can pours, then reveals the
-wordmark — tap the plant to make it wiggle.
+species model. The session splash (`components/fx/SplashSeedling.tsx`) is a
+generated "underwater rustic living room" backdrop
+(`public/splash/underwater-living-room.webp`) over which the WaterDem wordmark
+and tagline reveal, with a few rising bubbles — a lightweight DOM/Framer-Motion
+splash (no WebGL), shown once per session and skipped under reduced-motion.
 
 Data: `users.home_spaces` (≤2 room keys) and `plants.room` (migration
 `0004_home.sql`). The 5 rooms are living room, kitchen, bedroom, bathroom,

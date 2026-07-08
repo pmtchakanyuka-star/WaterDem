@@ -1,37 +1,47 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import dynamic from "next/dynamic";
+import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 
 /**
- * Signature splash: a real 3D plant grows out of a pot while a watering can
- * pours, the WaterDem wordmark fades in over it, and tapping the plant makes
- * it wiggle. Tap anywhere else to enter. Plays once per browser session and is
- * skipped entirely under prefers-reduced-motion. The Three.js scene is lazy so
- * it never runs on the server.
+ * Signature splash: an underwater rustic living room full of clay houseplants
+ * (a generated backdrop), with the WaterDem wordmark and "Put water pon dem
+ * tings" revealing in the open water, plus a few rising bubbles for life. Plays
+ * once per browser session, skipped under prefers-reduced-motion, and dismissed
+ * on tap or after a short hold.
  */
-const Splash3DScene = dynamic(() => import("@/components/fx/Splash3DScene"), {
-  ssr: false,
-});
+
+const WORD = "WaterDem";
+const EASE_OUT = [0.22, 1, 0.36, 1] as const;
 
 export default function SplashSeedling() {
   const reduceMotion = useReducedMotion();
   const [show, setShow] = useState(false);
-  const [revealed, setRevealed] = useState(false);
+
+  const bubbles = useMemo(
+    () =>
+      Array.from({ length: 16 }, (_, i) => ({
+        id: i,
+        left: Math.random() * 100,
+        size: 4 + Math.random() * 11,
+        dur: 6 + Math.random() * 6,
+        delay: Math.random() * 5,
+      })),
+    [],
+  );
 
   useEffect(() => {
     if (reduceMotion) return;
     if (sessionStorage.getItem("waterdem:splashed")) return;
     sessionStorage.setItem("waterdem:splashed", "1");
     setShow(true);
-    // Safety net: never trap the user behind the splash if the model is slow
-    // to load or errors out.
-    const t = setTimeout(() => setShow(false), 8000);
+    const t = setTimeout(() => setShow(false), 5200);
     return () => clearTimeout(t);
   }, [reduceMotion]);
 
   if (reduceMotion) return null;
+
+  const revealBase = 0.5;
 
   return (
     <AnimatePresence>
@@ -39,57 +49,130 @@ export default function SplashSeedling() {
         <motion.div
           key="splash"
           aria-hidden
-          className="fixed inset-0 z-50"
-          style={{
-            background:
-              "radial-gradient(120% 90% at 20% 0%, #0A2411 0%, #081C0E 55%, #071509 100%)",
-          }}
+          onClick={() => setShow(false)}
+          className="fixed inset-0 z-50 cursor-pointer overflow-hidden bg-[#14636b]"
           exit={{ opacity: 0, transition: { duration: 0.6, ease: "easeOut" } }}
         >
-          {/* soft drifting glow behind the plant */}
+          {/* the underwater living-room backdrop */}
           <motion.div
-            className="pointer-events-none absolute left-1/2 top-1/3 -translate-x-1/2 rounded-full"
+            className="absolute inset-[-2%] bg-cover"
             style={{
-              width: 460,
-              height: 460,
-              background:
-                "radial-gradient(circle, rgba(110,231,168,0.16) 0%, transparent 70%)",
-              filter: "blur(34px)",
+              backgroundImage: "url('/splash/underwater-living-room.webp')",
+              backgroundPosition: "center 46%",
             }}
-            animate={{ x: [-30, 30, -30], y: [-14, 14, -14] }}
-            transition={{ duration: 9, repeat: Infinity, ease: "easeInOut" }}
+            initial={{ scale: 1.04 }}
+            animate={{ scale: 1.09, x: "-1%", y: "-1.2%" }}
+            transition={{ duration: 20, ease: "easeInOut", repeat: Infinity, repeatType: "reverse" }}
           />
 
-          <Splash3DScene
-            onReveal={() => setRevealed(true)}
-            onDone={() => setShow(false)}
-            onSkip={() => setShow(false)}
+          {/* readability lift behind the mark */}
+          <div
+            className="absolute left-1/2 top-[19%] -translate-x-1/2 -translate-y-1/2"
+            style={{
+              width: "min(120vw, 760px)",
+              height: "34vh",
+              background:
+                "radial-gradient(closest-side, rgba(6,46,52,0.34), rgba(6,46,52,0) 72%)",
+            }}
           />
 
-          <AnimatePresence>
-            {revealed && (
-              <motion.div
-                key="wordmark"
-                className="pointer-events-none absolute inset-x-0 top-[13%] flex flex-col items-center"
-                initial={{ opacity: 0, y: 12, scale: 0.96 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+          {/* rising bubbles */}
+          {bubbles.map((b) => (
+            <motion.span
+              key={b.id}
+              className="pointer-events-none absolute rounded-full"
+              style={{
+                left: `${b.left}%`,
+                bottom: "-8%",
+                width: b.size,
+                height: b.size,
+                background:
+                  "radial-gradient(circle at 32% 28%, rgba(255,255,255,0.9), rgba(220,250,255,0.28) 42%, transparent 70%)",
+                boxShadow: "inset 0 0 4px rgba(255,255,255,0.5)",
+              }}
+              initial={{ y: 0, opacity: 0 }}
+              animate={{ y: "-112vh", opacity: [0, 0.8, 0.8, 0] }}
+              transition={{
+                duration: b.dur,
+                delay: b.delay,
+                repeat: Infinity,
+                ease: "easeIn",
+                times: [0, 0.12, 0.82, 1],
+              }}
+            />
+          ))}
+
+          {/* wordmark + tagline in the open water */}
+          <div className="pointer-events-none absolute inset-x-0 top-[12%] flex flex-col items-center gap-3.5">
+            <div
+              className="relative flex whitespace-nowrap font-display font-medium leading-none text-[#f5fffb]"
+              style={{
+                fontSize: "clamp(46px, 13vw, 96px)",
+                textShadow:
+                  "0 1px 1px rgba(2,30,34,0.4), 0 6px 26px rgba(2,40,46,0.55), 0 0 34px rgba(175,240,255,0.6)",
+              }}
+            >
+              {WORD.split("").map((c, i) => (
+                <motion.span
+                  key={i}
+                  className="inline-block"
+                  initial={{ opacity: 0, y: "0.5em", filter: "blur(6px)" }}
+                  animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                  transition={{ delay: revealBase + i * 0.07, duration: 0.7, ease: EASE_OUT }}
+                >
+                  {c}
+                </motion.span>
+              ))}
+              {/* leaf accent */}
+              <motion.svg
+                viewBox="0 0 40 60"
+                className="absolute"
+                style={{ top: "-0.30em", right: "-0.36em", width: "0.5em", height: "0.6em", transformOrigin: "28% 82%" }}
+                initial={{ opacity: 0, scale: 0, rotate: -26 }}
+                animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                transition={{ delay: revealBase + WORD.length * 0.07 + 0.25, duration: 0.6, ease: [0.34, 1.56, 0.64, 1] }}
               >
-                <p className="font-display text-4xl tracking-tight text-leaf-100 drop-shadow-[0_2px_20px_rgba(0,0,0,0.55)]">
-                  WaterDem
-                </p>
-              </motion.div>
-            )}
-          </AnimatePresence>
+                <defs>
+                  <linearGradient id="splashAcc" x1="0" y1="0" x2="0.4" y2="1">
+                    <stop offset="0" stopColor="#2e7d32" />
+                    <stop offset="1" stopColor="#7ee06a" />
+                  </linearGradient>
+                </defs>
+                <path fill="url(#splashAcc)" d="M20 2 C 35 15, 36 42, 20 58 C 4 42, 5 15, 20 2 Z" />
+                <path
+                  fill="none"
+                  stroke="rgba(255,255,255,0.7)"
+                  strokeWidth="1.4"
+                  strokeLinecap="round"
+                  d="M20 8 L 20 52 M20 22 L 30 16 M20 22 L 10 16 M20 36 L 30 31 M20 36 L 10 31"
+                />
+              </motion.svg>
+            </div>
 
-          <motion.p
-            className="pointer-events-none absolute inset-x-0 bottom-10 text-center text-xs text-leaf-mut"
+            <motion.div
+              className="font-semibold uppercase text-[#eafffb]"
+              style={{
+                fontSize: "clamp(12px, 3.4vw, 17px)",
+                letterSpacing: "0.30em",
+                paddingLeft: "0.30em",
+                textShadow: "0 1px 12px rgba(2,36,40,0.7)",
+              }}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: revealBase + WORD.length * 0.07 + 0.5, duration: 0.8, ease: EASE_OUT }}
+            >
+              Put water pon dem tings
+            </motion.div>
+          </div>
+
+          <motion.div
+            className="pointer-events-none absolute inset-x-0 bottom-10 text-center text-[11px] uppercase tracking-[0.22em] text-[rgba(240,255,252,0.8)]"
             initial={{ opacity: 0 }}
-            animate={{ opacity: 0.65 }}
-            transition={{ delay: 1.9, duration: 0.6 }}
+            animate={{ opacity: 0.85 }}
+            transition={{ delay: 2.6, duration: 0.8 }}
           >
-            tap the plant to say hi · tap anywhere to enter
-          </motion.p>
+            tap to enter
+          </motion.div>
         </motion.div>
       )}
     </AnimatePresence>
