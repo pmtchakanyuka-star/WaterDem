@@ -71,3 +71,32 @@ export function recordSuccess(nickname: string, ip: string): void {
   attempts.delete(ipKey(nickname, ip));
   attempts.delete(nickKey(nickname));
 }
+
+// --- Signup limiter: cap account creation per IP to curb spam ---------------
+const SIGNUP_MAX = 8;
+const SIGNUP_WINDOW_MS = 10 * 60_000;
+const signups = new Map<string, { count: number; firstAt: number }>();
+
+/** Seconds to wait before this IP may sign up again, or 0 if allowed. */
+export function signupLockedForSeconds(ip: string): number {
+  const now = Date.now();
+  const e = signups.get(ip);
+  if (!e || now - e.firstAt > SIGNUP_WINDOW_MS) return 0;
+  if (e.count < SIGNUP_MAX) return 0;
+  return Math.ceil((e.firstAt + SIGNUP_WINDOW_MS - now) / 1000);
+}
+
+export function recordSignup(ip: string): void {
+  const now = Date.now();
+  if (signups.size > 5000) {
+    for (const [k, e] of signups) {
+      if (now - e.firstAt > SIGNUP_WINDOW_MS) signups.delete(k);
+    }
+  }
+  const e = signups.get(ip);
+  if (!e || now - e.firstAt > SIGNUP_WINDOW_MS) {
+    signups.set(ip, { count: 1, firstAt: now });
+  } else {
+    e.count += 1;
+  }
+}

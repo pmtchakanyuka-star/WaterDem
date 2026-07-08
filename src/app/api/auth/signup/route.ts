@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { withUser } from "@/lib/db";
 import { createSession } from "@/lib/session";
-import { readJsonObject } from "@/lib/http";
+import { clientIp, readJsonObject } from "@/lib/http";
+import { recordSignup, signupLockedForSeconds } from "@/lib/ratelimit";
 
 export const runtime = "nodejs";
 
@@ -24,6 +25,15 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const ip = clientIp(req);
+  const wait = signupLockedForSeconds(ip);
+  if (wait > 0) {
+    return NextResponse.json(
+      { error: `Too many sign-ups from here — try again in ${wait}s.`, retryAfter: wait },
+      { status: 429 },
+    );
+  }
+
   const parsed = await readJsonObject(req);
   if (!parsed.ok) return parsed.res;
   const body = parsed.body as { nickname?: unknown; password?: unknown };
@@ -37,9 +47,23 @@ export async function POST(req: NextRequest) {
       { status: 400 },
     );
   }
-  if (password.length < 8 || password.length > 200 || !password.trim()) {
+  // Validate real length: reject edge whitespace so padding can't inflate a
+  // weak password to the minimum, and give the right message for too-long.
+  if (/^\s|\s$/.test(password)) {
+    return NextResponse.json(
+      { error: "Passwords can’t start or end with a space." },
+      { status: 400 },
+    );
+  }
+  if (password.length < 8) {
     return NextResponse.json(
       { error: "Passwords need at least 8 characters." },
+      { status: 400 },
+    );
+  }
+  if (password.length > 200) {
+    return NextResponse.json(
+      { error: "Passwords can be at most 200 characters." },
       { status: 400 },
     );
   }
@@ -54,6 +78,7 @@ export async function POST(req: NextRequest) {
         returning id, nickname`;
       return rows[0] as { id: string; nickname: string };
     });
+    recordSignup(ip);
     await createSession({ userId: user.id, nickname: user.nickname });
     return NextResponse.json(
       { id: user.id, nickname: user.nickname },

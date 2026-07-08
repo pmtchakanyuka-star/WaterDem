@@ -1,6 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 
 /**
+ * The caller's IP, taken from platform-provided real-IP headers (which the
+ * client can't forge) or the RIGHTMOST x-forwarded-for hop — never the
+ * client-supplied leftmost token.
+ */
+export function clientIp(req: NextRequest): string {
+  const realIp =
+    req.headers.get("x-real-ip") ?? req.headers.get("x-vercel-forwarded-for");
+  if (realIp) return realIp.trim();
+  const xff = req.headers.get("x-forwarded-for");
+  if (xff) {
+    const parts = xff.split(",").map((s) => s.trim()).filter(Boolean);
+    if (parts.length) return parts[parts.length - 1];
+  }
+  return "local";
+}
+
+/**
  * Parse a JSON request body, guaranteeing a plain object result. `JSON.parse`
  * accepts "null", numbers, strings and arrays — all of which then crash on
  * property access — so callers get a uniform 400 instead of a 500 for any
