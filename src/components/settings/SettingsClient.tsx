@@ -354,6 +354,29 @@ function SettingsInner({
           </ul>
         )}
       </GlassCard>
+
+      {/* Credits / attribution */}
+      <footer className="px-1 pb-2 text-center text-xs leading-relaxed text-leaf-mut">
+        3D plant models:{" "}
+        <a
+          href="https://sketchfab.com/MozzarellaARC"
+          target="_blank"
+          rel="noreferrer noopener"
+          className="underline decoration-dotted underline-offset-2 hover:text-leaf-2nd"
+        >
+          &ldquo;Tropical Plants Pack M02P&rdquo; by MozzarellaARC
+        </a>
+        , licensed{" "}
+        <a
+          href="https://creativecommons.org/licenses/by/4.0/"
+          target="_blank"
+          rel="noreferrer noopener"
+          className="underline decoration-dotted underline-offset-2 hover:text-leaf-2nd"
+        >
+          CC BY 4.0
+        </a>
+        .
+      </footer>
     </main>
   );
 }

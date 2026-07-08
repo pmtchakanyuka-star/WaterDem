@@ -1,0 +1,53 @@
+name: Deploy Vercel Preview
+
+# Builds on GitHub's runner and uploads prebuilt output as a PREVIEW deployment
+# (never touches the production alias). Use this to review changes on a real URL
+# before merging to master. Prints the preview URL in the run summary.
+# Secrets: VERCEL_TOKEN, VERCEL_ORG_ID (team id), VERCEL_PROJECT_ID.
+on:
+  workflow_dispatch:
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      TOKEN: ${{ secrets.VERCEL_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Vercel CLI
+        run: npm install -g vercel@latest
+
+      - name: Pull project settings (preview)
+        run: vercel pull --yes --environment=preview --token="$TOKEN"
+      - name: Build (on the runner)
+        run: vercel build --token="$TOKEN"
+      - name: Deploy prebuilt output as preview
+        id: deploy
+        run: |
+          set -eo pipefail
+          URL=$(timeout 900 vercel deploy --prebuilt --yes --token="$TOKEN")
+          echo "Preview: $URL"
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          {
+            echo "## 🌱 Preview ready"
+            echo ""
+            echo "**$URL**"
+            echo ""
+            echo "Open this in a real browser to review the 3D plants, the room"
+            echo "materials, and the loading splash before merging to master."
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Confirm preview responds
+        run: |
+          URL="${{ steps.deploy.outputs.url }}"
+          for i in $(seq 1 25); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" "$URL/guide" || echo 000)
+            echo "attempt $i: $URL/guide -> $code"
+            if [ "$code" = "200" ]; then echo "Preview is live."; exit 0; fi
+            sleep 6
+          done
+          echo "Preview not confirmed 200 yet (it may still be finishing)."

@@ -21,15 +21,32 @@ tactile glassmorphism over a living forest gradient.
 A Grid ↔ Home toggle on the garden. The Three.js bundle is lazy-loaded
 (`next/dynamic`, `ssr:false`) so it only downloads when the Home view opens —
 the grid's first-load JS is unchanged. Rooms and furniture are procedural
-low-poly geometry (no external model assets, matching the app's self-contained
-setup); the camera orbits and pinch-zooms. `frameloop="demand"` keeps it idle
-at rest for mobile battery, reduced-motion is respected, and it falls back to
-the grid when WebGL is unavailable or a render error occurs.
+low-poly geometry with procedural wood/tile floor textures and daylight windows
+(painted on-canvas, no network assets); the plants themselves are real textured
+3D models (see Credits). The camera orbits and pinch-zooms. `frameloop="always"`
+gives plants continuous micro-motion when motion is allowed and `"demand"` under
+reduced-motion; it falls back to the grid when WebGL is unavailable or a render
+error occurs.
+
+The plant models live in a single web-optimized GLB (`public/models/plants.glb`,
+~3.6 MB — WebP textures, leaf alpha cutout, ground removed) built from the
+source FBX pack; `src/lib/plantModels.ts` maps each user plant to the closest
+species model. The session splash (`components/fx/Splash3DScene.tsx`) grows one
+of these models out of a pot while a watering can pours, then reveals the
+wordmark — tap the plant to make it wiggle.
 
 Data: `users.home_spaces` (≤2 room keys) and `plants.room` (migration
 `0004_home.sql`). The 5 rooms are living room, kitchen, bedroom, bathroom,
 balcony. Note: `next dev`/`next build` run on webpack (not Turbopack) for
 react-three-fiber compatibility.
+
+## Credits
+
+The 3D plant models are from **"Tropical Plants Pack M02P" by MozzarellaARC**,
+licensed **CC BY 4.0** (<https://creativecommons.org/licenses/by/4.0/>). The
+pack was converted from FBX to a web-optimized GLB (textures downscaled to WebP,
+leaf alpha preserved) for this app. Attribution is also surfaced in-app on the
+Settings screen.
 
 ## Running locally
 

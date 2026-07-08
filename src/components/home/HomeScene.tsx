@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { Canvas, invalidate } from "@react-three/fiber";
 import {
   ContactShadows,
@@ -94,30 +94,39 @@ export default function HomeScene({
         <Lightformer intensity={0.7} position={[4, 1, -3]} scale={[4, 4, 1]} color="#dff5e6" />
       </Environment>
 
-      {rooms.map((room, i) => {
-        const roomPlants = plants
-          .filter((p) => p.room === room)
-          .slice(0, SLOTS_PER_ROOM);
-        return (
-          <group key={room} position={[offsets[i], 0, 0]}>
-            <RoomShell room={room} />
-            <RoomFurniture room={room} />
-            {roomPlants.map((plant, slot) => (
-              <Plant3D
-                key={plant.id}
-                plant={plant}
-                weatherFactor={weatherFactor}
-                position={SLOTS[room][slot]}
-                hovered={hoveredId === plant.id}
-                selected={selectedId === plant.id}
-                reduceMotion={reduceMotion}
-                onHover={onHover}
-                onSelect={onSelect}
-              />
-            ))}
-          </group>
-        );
-      })}
+      {rooms.map((room, i) => (
+        <group key={room} position={[offsets[i], 0, 0]}>
+          <RoomShell room={room} />
+          <RoomFurniture room={room} />
+        </group>
+      ))}
+
+      {/* Plants load a shared GLB — suspend just this part so the rooms and
+          lighting show immediately while the models stream in. */}
+      <Suspense fallback={null}>
+        {rooms.map((room, i) => {
+          const roomPlants = plants
+            .filter((p) => p.room === room)
+            .slice(0, SLOTS_PER_ROOM);
+          return (
+            <group key={room} position={[offsets[i], 0, 0]}>
+              {roomPlants.map((plant, slot) => (
+                <Plant3D
+                  key={plant.id}
+                  plant={plant}
+                  weatherFactor={weatherFactor}
+                  position={SLOTS[room][slot]}
+                  hovered={hoveredId === plant.id}
+                  selected={selectedId === plant.id}
+                  reduceMotion={reduceMotion}
+                  onHover={onHover}
+                  onSelect={onSelect}
+                />
+              ))}
+            </group>
+          );
+        })}
+      </Suspense>
 
       <ContactShadows
         position={[0, -0.02, 0]}
