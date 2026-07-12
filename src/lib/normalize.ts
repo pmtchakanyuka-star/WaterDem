@@ -1,8 +1,7 @@
 import { toRoomKey } from "@/lib/home";
-import type { GrowthStage, HealthCheck, Plant, PlantLook, PotLook } from "@/lib/types";
+import { PLANT_LOOKS, POT_LOOKS } from "@/lib/types";
+import type { GrowthStage, HealthCheck, Plant } from "@/lib/types";
 
-const PLANT_LOOKS: PlantLook[] = ["monstera", "fern", "palm", "banana", "cannabis"];
-const POT_LOOKS: PotLook[] = ["twotone", "terracotta", "teal", "rasta", "sand"];
 const GROWTH_STAGES: GrowthStage[] = ["seed", "seedling", "young", "mature"];
 const SEVERITIES = ["ok", "watch", "act"] as const;
 

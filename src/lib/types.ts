@@ -6,17 +6,16 @@ export type HumidityLevel = "low" | "medium" | "high";
 export type PetSafety = "toxic" | "mild" | "safe";
 
 /** Home-view "avatar" for a plant: its look and its pot, chosen by the user. */
-export type PlantLook =
-  | "monstera"
-  | "fern"
-  | "palm"
-  | "banana"
-  | "cannabis"
-  | "flower" // gerbera daisies
-  | "lily" // peace lily
-  | "orchid"
-  | "violet"; // African violet
-export type PotLook = "twotone" | "terracotta" | "teal" | "rasta" | "sand";
+// Single source of truth for the look values — normalize.ts and the PATCH
+// route derive from these so the lists can't drift (a stale copy in normalize
+// once silently nulled newly added looks).
+export const PLANT_LOOKS = [
+  "monstera", "fern", "palm", "banana", "cannabis",
+  "flower", "lily", "orchid", "violet", // flower = gerbera daisies
+] as const;
+export const POT_LOOKS = ["twotone", "terracotta", "teal", "rasta", "sand"] as const;
+export type PlantLook = (typeof PLANT_LOOKS)[number];
+export type PotLook = (typeof POT_LOOKS)[number];
 
 /** Life stage of a plant — drives stage-aware AI care plans and 3D scale. */
 export type GrowthStage = "seed" | "seedling" | "young" | "mature";

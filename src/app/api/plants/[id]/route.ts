@@ -4,6 +4,7 @@ import { getSession } from "@/lib/session";
 import { normalizePlant } from "@/lib/normalize";
 import { readJsonObject } from "@/lib/http";
 import { coerceHomeSpaces, isRoomKey, type RoomKey } from "@/lib/home";
+import { PLANT_LOOKS, POT_LOOKS } from "@/lib/types";
 
 export const runtime = "nodejs";
 
@@ -42,11 +43,8 @@ const EDITABLE: Record<string, (v: unknown) => unknown | undefined> = {
   light: oneOfOrNull(["low", "medium", "bright"]),
   humidity: oneOfOrNull(["low", "medium", "high"]),
   // Home-view appearance — null clears to "auto".
-  plant_look: oneOfOrNull([
-    "monstera", "fern", "palm", "banana", "cannabis",
-    "flower", "lily", "orchid", "violet",
-  ]),
-  pot_look: oneOfOrNull(["twotone", "terracotta", "teal", "rasta", "sand"]),
+  plant_look: oneOfOrNull([...PLANT_LOOKS]),
+  pot_look: oneOfOrNull([...POT_LOOKS]),
   // NOT NULL column: null/""/invalid input is skipped (undefined), never
   // written as null — unlike the oneOfOrNull fields above.
   growth_stage: (v) =>
