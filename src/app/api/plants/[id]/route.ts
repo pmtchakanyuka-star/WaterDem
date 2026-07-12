@@ -42,7 +42,10 @@ const EDITABLE: Record<string, (v: unknown) => unknown | undefined> = {
   light: oneOfOrNull(["low", "medium", "bright"]),
   humidity: oneOfOrNull(["low", "medium", "high"]),
   // Home-view appearance — null clears to "auto".
-  plant_look: oneOfOrNull(["monstera", "fern", "palm", "banana", "cannabis", "flower"]),
+  plant_look: oneOfOrNull([
+    "monstera", "fern", "palm", "banana", "cannabis",
+    "flower", "lily", "orchid", "violet",
+  ]),
   pot_look: oneOfOrNull(["twotone", "terracotta", "teal", "rasta", "sand"]),
   // NOT NULL column: null/""/invalid input is skipped (undefined), never
   // written as null — unlike the oneOfOrNull fields above.

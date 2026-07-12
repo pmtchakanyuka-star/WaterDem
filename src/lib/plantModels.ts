@@ -58,7 +58,15 @@ export function isCannabis(plant: Pick<Plant, "name" | "species" | "common_name"
   return /(cannabis|marijuana|\bweed\b|ganja|\bhemp\b|\bkush\b|sativa|indica|reefer|spliff|\b420\b|mary ?jane|bomboclaat|bumboclaat|rasta)/.test(hay);
 }
 
-const POOLS: Record<Exclude<PlantLook, "cannabis" | "flower">, string[]> = {
+/** Looks rendered procedurally (no GLB node): cannabis + the flower family. */
+export const PROCEDURAL_LOOKS = ["cannabis", "flower", "lily", "orchid", "violet"] as const;
+export type ProceduralLook = (typeof PROCEDURAL_LOOKS)[number];
+
+export function isProceduralLook(look: PlantLook | null): look is ProceduralLook {
+  return !!look && (PROCEDURAL_LOOKS as readonly string[]).includes(look);
+}
+
+const POOLS: Record<Exclude<PlantLook, ProceduralLook>, string[]> = {
   monstera: MONSTERA,
   fern: FERN,
   palm: PALM,
@@ -67,15 +75,15 @@ const POOLS: Record<Exclude<PlantLook, "cannabis" | "flower">, string[]> = {
 
 /**
  * The GLB node for a plant given an explicit look (from the user's choice).
- * "cannabis" and "flower" are procedural (no GLB node) — for those, and for
- * null (auto), fall back to species-derived selection; the caller renders the
- * procedural plant instead of the returned node.
+ * Procedural looks have no GLB node — for those, and for null (auto), fall
+ * back to species-derived selection; the caller renders the procedural plant
+ * instead of the returned node.
  */
 export function modelNodeForLook(
   plant: Pick<Plant, "id" | "name" | "species" | "common_name">,
   look: PlantLook | null,
 ): string {
-  if (look && look !== "cannabis" && look !== "flower") {
+  if (look && !isProceduralLook(look)) {
     const pool = POOLS[look];
     return pool[hash(plant.id) % pool.length];
   }

@@ -9,7 +9,7 @@ import { MODEL_PATH, modelNodeForLook, isCannabis } from "@/lib/plantModels";
 import { normalizeModel } from "@/lib/modelUtils";
 import { CLAY, CLAY_ROUGH, RASTA } from "@/lib/clay";
 import ClayCannabis from "@/components/home/ClayCannabis";
-import ClayFlower from "@/components/home/ClayFlower";
+import ClayFlower, { type FlowerVariant } from "@/components/home/ClayFlower";
 import type { GrowthStage, Plant, PlantLook, PotLook } from "@/lib/types";
 
 /**
@@ -201,8 +201,14 @@ export default function Plant3D({
     [plant],
   );
   const cannabis = look === "cannabis";
-  const flower = look === "flower";
-  const procedural = cannabis || flower;
+  const FLOWER_VARIANT: Partial<Record<string, FlowerVariant>> = {
+    flower: "daisy",
+    lily: "lily",
+    orchid: "orchid",
+    violet: "violet",
+  };
+  const flowerVariant = look ? FLOWER_VARIANT[look] : undefined;
+  const procedural = cannabis || !!flowerVariant;
   const potLook: PotLook = plant.pot_look ?? (cannabis ? "rasta" : "twotone");
   const nodeName = useMemo(() => modelNodeForLook(plant, look), [plant, look]);
   const model = useNormalizedModel(nodeName);
@@ -273,8 +279,8 @@ export default function Plant3D({
           <SeedSprout />
         ) : cannabis ? (
           <ClayCannabis />
-        ) : flower ? (
-          <ClayFlower />
+        ) : flowerVariant ? (
+          <ClayFlower variant={flowerVariant} />
         ) : (
           model && <primitive object={model} />
         )}

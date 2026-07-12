@@ -549,7 +549,10 @@ export default function PlantDetailSheet({
                 <option value="palm">Palm</option>
                 <option value="banana">Banana</option>
                 <option value="cannabis">Chalice 🌿</option>
-                <option value="flower">Flowers 🌸</option>
+                <option value="flower">Daisies 🌼</option>
+                <option value="lily">Peace lily 🤍</option>
+                <option value="orchid">Orchid 🌸</option>
+                <option value="violet">African violet 💜</option>
               </select>
             </label>
             <label className="flex flex-col gap-1.5">

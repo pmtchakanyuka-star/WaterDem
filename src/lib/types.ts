@@ -6,7 +6,16 @@ export type HumidityLevel = "low" | "medium" | "high";
 export type PetSafety = "toxic" | "mild" | "safe";
 
 /** Home-view "avatar" for a plant: its look and its pot, chosen by the user. */
-export type PlantLook = "monstera" | "fern" | "palm" | "banana" | "cannabis" | "flower";
+export type PlantLook =
+  | "monstera"
+  | "fern"
+  | "palm"
+  | "banana"
+  | "cannabis"
+  | "flower" // gerbera daisies
+  | "lily" // peace lily
+  | "orchid"
+  | "violet"; // African violet
 export type PotLook = "twotone" | "terracotta" | "teal" | "rasta" | "sand";
 
 /** Life stage of a plant — drives stage-aware AI care plans and 3D scale. */
