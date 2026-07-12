@@ -1,4 +1,11 @@
-import type { Advice, IdentifyResult, Plant, Weather } from "@/lib/types";
+import type {
+  Advice,
+  GrowthStage,
+  HealthCheckResult,
+  IdentifyResult,
+  Plant,
+  Weather,
+} from "@/lib/types";
 
 /**
  * AI provider isolation layer — currently OpenAI (gpt-4o, vision-capable).
@@ -52,7 +59,9 @@ NUTRIENTS: Nitrogen (N) drives green leafy growth (deficiency = pale/yellow olde
 
 PET SAFETY (ASPCA): set petSafety to 'toxic', 'mild', or 'safe' (to cats and dogs), with a one-line petSafetyNote. Known: TOXIC — Monstera, Pothos, Philodendron, Peace lily, Aloe, Snake plant, Dracaena/corn plant (all cause GI upset or mouth-burning oxalates; note peace lily is NOT a deadly true lily). MILD — ZZ plant, Fiddle-leaf fig, Tradescantia (Tradescantia mainly a contact skin rash). SAFE — Calathea, Spider plant. If unsure of a species, say so in the note and use your best assessment.
 
-Know the common species and their specifics (Monstera deliciosa, Spathiphyllum, Sansevieria, Epipremnum/pothos, Ficus lyrata, Aloe, ZZ, Calathea, Philodendron, Dracaena, Chlorophytum/spider plant, Tradescantia).`;
+Know the common species and their specifics (Monstera deliciosa, Spathiphyllum, Sansevieria, Epipremnum/pothos, Ficus lyrata, Aloe, ZZ, Calathea, Philodendron, Dracaena, Chlorophytum/spider plant, Tradescantia).
+
+GROWTH STAGES: If a growth stage is given, adapt everything to it. seed — keep the top of the soil consistently moist (never soggy) until germination; effective watering interval 1-3 days; no fertilizer; warmth matters more than light. seedling — light, frequent watering when the surface dries, roughly every 2-4 days; roots are shallow so deep-and-rarely is wrong; no or quarter-strength feeding; gentle light, direct sun scorches. young — transitioning to the species' adult rhythm; set waterFreqDays to roughly 70% of the adult interval; begin half-strength feeding in the growing season. mature — the species intervals above apply unchanged. When asked to identify or re-plan, waterFreqDays MUST reflect the stated stage, and weeklyTips should include one stage-appropriate tip.`;
 
 const IDENTIFY_INSTRUCTIONS = `Identify the houseplant from the photo and/or the user's hint, then produce a care profile.
 
@@ -132,6 +141,8 @@ export type IdentifyDetails = {
   species?: string;
   /** How much light the plant's spot gets in the user's home. */
   spotLight?: "low" | "medium" | "bright";
+  /** How far along the plant is — the care plan adapts to the stage. */
+  growthStage?: GrowthStage;
 };
 
 export async function identifyPlant(input: {
@@ -146,6 +157,10 @@ export async function identifyPlant(input: {
   if (input.details?.spotLight)
     context.push(
       `Its spot in their home gets ${input.details.spotLight} light — weigh this when setting waterFreqDays (more light and warmth means faster drying).`,
+    );
+  if (input.details?.growthStage)
+    context.push(
+      `The plant's growth stage is: ${input.details.growthStage} — set waterFreqDays and tips for this stage, not the adult plant.`,
     );
 
   const content: OpenAiContentPart[] = [
@@ -221,7 +236,7 @@ class AiResponseError extends Error {}
 export async function adviseForPlant(
   plant: Pick<
     Plant,
-    "name" | "species" | "water_freq_days" | "light" | "humidity" | "soil_check" | "weather_note" | "last_watered"
+    "name" | "species" | "growth_stage" | "water_freq_days" | "light" | "humidity" | "soil_check" | "weather_note" | "last_watered"
   >,
   weather: Weather | null,
 ): Promise<Advice> {
@@ -236,7 +251,7 @@ export async function adviseForPlant(
         type: "text",
         text: `Give watering/care advice for this plant right now.
 
-Plant: ${plant.name}${plant.species ? ` (${plant.species})` : ""}
+Plant: ${plant.name}${plant.species ? ` (${plant.species})` : ""}; growth stage: ${plant.growth_stage}.
 Waters every ${plant.water_freq_days} days; last watered ${plant.last_watered ?? "unknown"}.
 Light: ${plant.light ?? "unknown"}, humidity preference: ${plant.humidity ?? "unknown"}.
 Soil check: ${plant.soil_check ?? "n/a"}
@@ -262,5 +277,88 @@ conditions. Plain human language — no database jargon.`,
     tips: Array.isArray(raw.tips)
       ? raw.tips.filter((t) => typeof t === "string").slice(0, 4)
       : [],
+  };
+}
+
+const GROWTH_STAGES = ["seed", "seedling", "young", "mature"] as const;
+const SEVERITIES = ["ok", "watch", "act"] as const;
+
+/**
+ * AI health checkup: a photo of the worrying leaves and/or the owner's
+ * description in, a diagnosis against the plant's actual profile and watering
+ * record out. Returns null when the model can't assess (mirrors identifyPlant).
+ */
+export async function checkPlantHealth(
+  plant: Pick<
+    Plant,
+    | "name"
+    | "species"
+    | "growth_stage"
+    | "water_freq_days"
+    | "last_watered"
+    | "light"
+    | "humidity"
+    | "room"
+    | "soil_check"
+    | "weather_note"
+  > & {
+    /** ISO dates of the most recent waterings, newest first. */
+    recentWaterings?: string[];
+  },
+  weather: Weather | null,
+  input: { imageBase64?: string; note?: string },
+): Promise<HealthCheckResult | null> {
+  const weatherLine = weather
+    ? `Current local weather: ${weather.tempC}°C, ${weather.humidityPct}% humidity, wind ${weather.windKmh} km/h.`
+    : "No weather data available.";
+  const waterings = plant.recentWaterings?.length
+    ? plant.recentWaterings.join(", ")
+    : "none logged";
+
+  const content: OpenAiContentPart[] = [
+    {
+      type: "text",
+      text: `Assess this specific plant's health from the photo and/or the owner's description.
+
+Plant: ${plant.name}${plant.species ? ` (${plant.species})` : ""}; growth stage: ${plant.growth_stage}.
+Schedule: waters every ${plant.water_freq_days} days; last watered ${plant.last_watered ?? "unknown"};
+recent waterings: ${waterings}.
+Spot: light ${plant.light ?? "unknown"}, humidity preference ${plant.humidity ?? "unknown"}, room: ${plant.room ?? "unknown"}.
+Soil check: ${plant.soil_check ?? "n/a"}. Species weather sensitivity: ${plant.weather_note ?? "n/a"}.
+${weatherLine}
+Owner's concern: ${input.note ?? "none given — judge from the photo"}
+
+Diagnose against the profile: over/under-watering vs the actual watering record, light stress, dry air, feeding, pests. Prefer the least-drastic explanation; "wait and re-check in a week" is a valid outcome. Plain human language, no jargon.
+
+Respond with ONLY a JSON object:
+{ "summary": string, "diagnosis": string, "severity": "ok"|"watch"|"act", "advice": string[], "suggestedStage": "seed"|"seedling"|"young"|"mature"|null }
+If there is no plant to assess, respond with {"error": "unassessable"}.`,
+    },
+  ];
+  if (input.imageBase64) {
+    // Same handling as identifyPlant: data URL, bare base64, or https URL.
+    const url =
+      input.imageBase64.startsWith("data:") ||
+      input.imageBase64.startsWith("http")
+        ? input.imageBase64
+        : `data:image/jpeg;base64,${input.imageBase64}`;
+    content.push({ type: "image_url", image_url: { url, detail: "low" } });
+  }
+
+  const raw = await chatJson(BOTANIST_SYSTEM_PROMPT, content);
+  if (raw.error) return null;
+
+  return {
+    summary: typeof raw.summary === "string" ? raw.summary : "",
+    diagnosis: typeof raw.diagnosis === "string" ? raw.diagnosis : "",
+    severity: SEVERITIES.includes(raw.severity as (typeof SEVERITIES)[number])
+      ? (raw.severity as (typeof SEVERITIES)[number])
+      : "watch",
+    advice: Array.isArray(raw.advice)
+      ? raw.advice.filter((s) => typeof s === "string").slice(0, 5)
+      : [],
+    suggestedStage: GROWTH_STAGES.includes(raw.suggestedStage as GrowthStage)
+      ? (raw.suggestedStage as GrowthStage)
+      : null,
   };
 }

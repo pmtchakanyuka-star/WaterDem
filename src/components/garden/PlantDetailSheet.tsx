@@ -1,18 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
   CalendarDays,
+  Camera,
   Droplet,
   Eye,
   EyeOff,
   FlaskConical,
+  HeartPulse,
   Lightbulb,
   MapPin,
   Palette,
   Sparkles,
+  Sprout,
   Sun,
   Thermometer,
   Trash2,
@@ -26,9 +29,12 @@ import PetSafetyBadge from "@/components/garden/PetSafetyBadge";
 import WaterArc from "@/components/garden/WaterArc";
 import { useToast } from "@/components/Toast";
 import { ROOMS, type RoomKey } from "@/lib/home";
+import { downscaleToDataUrl } from "@/lib/image";
 import type {
   Advice,
   CareLevel,
+  GrowthStage,
+  HealthCheck,
   HumidityLevel,
   LightLevel,
   Plant,
@@ -50,6 +56,41 @@ const HUMIDITY_LABEL: Record<string, string> = {
   low: "Low humidity is fine (20–40%)",
   medium: "Moderate humidity (40–60%)",
   high: "Loves humid air (50–70%) — consider misting",
+};
+
+const STAGE_OPTIONS: { value: GrowthStage; label: string }[] = [
+  { value: "seed", label: "Just a seed" },
+  { value: "seedling", label: "Seedling" },
+  { value: "young", label: "Young plant" },
+  { value: "mature", label: "Mature" },
+];
+
+const NEXT_STAGE: Record<GrowthStage, GrowthStage> = {
+  seed: "seedling",
+  seedling: "young",
+  young: "mature",
+  mature: "mature",
+};
+
+const STAGE_PHRASE: Record<GrowthStage, string> = {
+  seed: "seed",
+  seedling: "seedling",
+  young: "young plant",
+  mature: "mature",
+};
+
+// Severity tints follow the existing status colours (ring/status greens,
+// ambers and reds used across the garden).
+const SEVERITY_CARD: Record<HealthCheck["severity"], string> = {
+  ok: "border-[rgba(110,231,168,0.25)] bg-[rgba(110,231,168,0.06)]",
+  watch: "border-[rgba(251,191,36,0.28)] bg-[rgba(251,191,36,0.06)]",
+  act: "border-[rgba(248,113,113,0.30)] bg-[rgba(248,113,113,0.06)]",
+};
+
+const SEVERITY_DOT: Record<HealthCheck["severity"], string> = {
+  ok: "bg-[#4ade80]",
+  watch: "bg-[#fbbf24]",
+  act: "bg-[#f87171]",
 };
 
 /** A glass-styled select for the edit form. */
@@ -126,6 +167,7 @@ export default function PlantDetailSheet({
   onDeleted: (id: string) => void;
 }) {
   const { toast } = useToast();
+  const healthFileRef = useRef<HTMLInputElement>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [editing, setEditing] = useState(false);
   const [edits, setEdits] = useState<Edits | null>(null);
@@ -134,17 +176,30 @@ export default function PlantDetailSheet({
   const [adviceLoading, setAdviceLoading] = useState(false);
   const [replanning, setReplanning] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [healthPhoto, setHealthPhoto] = useState<string | null>(null);
+  const [healthNote, setHealthNote] = useState("");
+  const [healthChecking, setHealthChecking] = useState(false);
+  const [healthResult, setHealthResult] = useState<HealthCheck | null>(null);
+  const [pastChecks, setPastChecks] = useState<HealthCheck[]>([]);
 
   useEffect(() => {
     setConfirmDelete(false);
     setEditing(false);
     setAdvice(null);
     setHistory([]);
+    setHealthPhoto(null);
+    setHealthNote("");
+    setHealthResult(null);
+    setPastChecks([]);
     if (plant) {
       setEdits(editsFromPlant(plant));
       fetch(`/api/plants/${plant.id}/water`)
         .then((r) => (r.ok ? r.json() : { logs: [] }))
         .then((d) => setHistory(d.logs ?? []))
+        .catch(() => {});
+      fetch(`/api/plants/${plant.id}/health`)
+        .then((r) => (r.ok ? r.json() : { checks: [] }))
+        .then((d) => setPastChecks(d.checks ?? []))
         .catch(() => {});
     }
   }, [plant?.id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -200,7 +255,7 @@ export default function PlantDetailSheet({
     }
   };
 
-  const replan = async () => {
+  const replan = async (successMessage?: string) => {
     setReplanning(true);
     try {
       const res = await fetch(`/api/plants/${plant!.id}/replan`, {
@@ -214,13 +269,23 @@ export default function PlantDetailSheet({
       onUpdated(data);
       toast(
         "success",
-        `Care plan refreshed — watering every ${data.water_freq_days} days now.`,
+        successMessage ??
+          `Care plan refreshed — watering every ${data.water_freq_days} days now.`,
       );
     } catch {
       toast("error", "The botanist is unavailable right now — try again.");
     } finally {
       setReplanning(false);
     }
+  };
+
+  // Stage changes are patch + re-plan in one gesture: the watering schedule is
+  // the botanist's, so a new life stage always triggers a fresh care plan.
+  const changeStage = async (stage: GrowthStage) => {
+    if (!plant || stage === plant.growth_stage) return;
+    const updated = await patch({ growth_stage: stage });
+    if (!updated) return;
+    await replan("Stage updated — the botanist re-planned watering.");
   };
 
   const toggleVisibility = async () => {
@@ -270,6 +335,50 @@ export default function PlantDetailSheet({
       toast("error", "Couldn't fetch advice right now.");
     } finally {
       setAdviceLoading(false);
+    }
+  };
+
+  const pickHealthPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setHealthPhoto(await downscaleToDataUrl(file));
+    } catch {
+      toast("error", "Couldn't read that image — try another.");
+    }
+  };
+
+  const runHealthCheck = async () => {
+    setHealthChecking(true);
+    try {
+      const res = await fetch(`/api/plants/${plant.id}/health`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          imageBase64: healthPhoto ?? undefined,
+          note: healthNote.trim() || undefined,
+          weather,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast(
+          "error",
+          data.error ?? "The botanist is unavailable right now — try again.",
+        );
+        return;
+      }
+      setHealthResult(data.check);
+      setPastChecks((prev) => [data.check, ...prev].slice(0, 10));
+      if (healthPhoto && data.photoSaved === false) {
+        toast("info", "Checked! The photo couldn't be saved to the history though.");
+      }
+      setHealthPhoto(null);
+      setHealthNote("");
+    } catch {
+      toast("error", "Couldn't reach the botanist — check your connection.");
+    } finally {
+      setHealthChecking(false);
     }
   };
 
@@ -388,6 +497,36 @@ export default function PlantDetailSheet({
             </select>
           </div>
         )}
+
+        {/* Growth stage — one tap to advance; the botanist re-plans watering. */}
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-glass-edge bg-[rgba(255,255,255,0.04)] px-4 py-3">
+          <span className="flex items-center gap-2 text-sm text-leaf-2nd">
+            <Sprout className="size-4 text-sage" aria-hidden /> Stage
+          </span>
+          <select
+            value={plant.growth_stage}
+            disabled={busy || replanning}
+            onChange={(e) => changeStage(e.target.value as GrowthStage)}
+            aria-label="How far along this plant is"
+            className="min-w-40 flex-1 rounded-lg border border-glass-edge bg-[rgba(255,255,255,0.05)] px-3 py-2 text-leaf-100 outline-none focus-visible:outline-2 focus-visible:outline-sage [&>option]:bg-forest-900"
+          >
+            {STAGE_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+          {plant.growth_stage !== "mature" && (
+            <GlassButton
+              variant="ghost"
+              size="sm"
+              onClick={() => changeStage(NEXT_STAGE[plant.growth_stage])}
+              disabled={busy || replanning}
+            >
+              It&apos;s grown a stage 🌱
+            </GlassButton>
+          )}
+        </div>
 
         {/* Home-view avatar — choose how this plant and its pot look in 3D. */}
         <div className="flex flex-col gap-3 rounded-xl border border-glass-edge bg-[rgba(255,255,255,0.04)] px-4 py-3">
@@ -511,7 +650,7 @@ export default function PlantDetailSheet({
               <GlassButton
                 variant="ghost"
                 size="sm"
-                onClick={replan}
+                onClick={() => replan()}
                 loading={replanning}
               >
                 {!replanning && <Sparkles className="size-4" aria-hidden />}
@@ -620,6 +759,130 @@ export default function PlantDetailSheet({
               </ul>
             </div>
           )}
+        </div>
+
+        {/* AI health checkup — a photo of the worrying leaves and/or a note
+            goes to the botanist with the plant's real watering record. */}
+        <div className="rounded-xl border border-glass-edge bg-[rgba(255,255,255,0.04)] p-4">
+          <p className="mb-3 flex items-center gap-2 text-sm font-medium text-leaf-100">
+            <HeartPulse className="size-4 text-alert" aria-hidden /> Health check
+          </p>
+          <div className="flex flex-col gap-3">
+            <button
+              onClick={() => healthFileRef.current?.click()}
+              className="glass glass-interactive flex min-h-24 flex-col items-center justify-center gap-2 border-dashed p-4 text-leaf-2nd"
+              aria-label={
+                healthPhoto
+                  ? "Change the health-check photo"
+                  : "Add a photo of the worrying leaves"
+              }
+            >
+              {healthPhoto ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  src={healthPhoto}
+                  alt="The worrying leaves"
+                  className="max-h-40 rounded-xl object-contain"
+                />
+              ) : (
+                <>
+                  <Camera className="size-6 text-sage" aria-hidden />
+                  <span className="text-sm">
+                    Snap or upload the worrying leaves
+                  </span>
+                </>
+              )}
+            </button>
+            {/* No `capture` attribute — the native picker must offer the
+                gallery as well as the camera. */}
+            <input
+              ref={healthFileRef}
+              type="file"
+              accept="image/*"
+              hidden
+              onChange={pickHealthPhoto}
+            />
+
+            <GlassInput
+              label="What worries you?"
+              placeholder="e.g. yellowing lower leaves, brown crispy tips…"
+              value={healthNote}
+              onChange={(e) => setHealthNote(e.target.value)}
+            />
+
+            <div>
+              <GlassButton
+                variant="primary"
+                size="sm"
+                onClick={runHealthCheck}
+                disabled={!healthPhoto && !healthNote.trim()}
+                loading={healthChecking}
+              >
+                {!healthChecking && <HeartPulse className="size-4" aria-hidden />}
+                {healthChecking ? "Checking…" : "Check with the botanist"}
+              </GlassButton>
+            </div>
+
+            {healthResult && (
+              <div
+                className={`rounded-xl border p-4 ${SEVERITY_CARD[healthResult.severity]}`}
+              >
+                <p className="text-sm font-semibold text-leaf-100">
+                  {healthResult.summary}
+                </p>
+                <p className="mt-1.5 text-sm text-leaf-2nd">
+                  {healthResult.diagnosis}
+                </p>
+                {healthResult.advice.length > 0 && (
+                  <ul className="mt-2 flex flex-col gap-1.5 text-sm text-leaf-2nd">
+                    {healthResult.advice.map((a, i) => (
+                      <li key={i} className="flex gap-2">
+                        <span className="text-sage" aria-hidden>—</span>
+                        {a}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {healthResult.suggested_stage &&
+                  healthResult.suggested_stage !== plant.growth_stage && (
+                    <GlassButton
+                      variant="ghost"
+                      size="sm"
+                      className="mt-3"
+                      onClick={() => changeStage(healthResult.suggested_stage!)}
+                      disabled={busy || replanning}
+                    >
+                      The botanist thinks it&apos;s reached{" "}
+                      {STAGE_PHRASE[healthResult.suggested_stage]} — advance?
+                    </GlassButton>
+                  )}
+              </div>
+            )}
+
+            {pastChecks.length > 0 && (
+              <div className="flex flex-col gap-1.5 border-t border-[rgba(255,255,255,0.07)] pt-3">
+                <p className="text-xs font-medium text-leaf-mut">Past checks</p>
+                {pastChecks.map((c) => (
+                  <div
+                    key={c.id}
+                    className="flex items-center gap-2.5 text-xs text-leaf-2nd"
+                  >
+                    <span
+                      className={`size-2 shrink-0 rounded-full ${SEVERITY_DOT[c.severity]}`}
+                      aria-hidden
+                    />
+                    <span className="shrink-0 text-leaf-mut">
+                      {new Date(c.created_at).toLocaleDateString(undefined, {
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </span>
+                    <span className="truncate">{c.summary}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         {plant.fun_facts.length > 0 && (

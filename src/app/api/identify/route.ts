@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
   const body = parsed.body as {
     imageBase64?: unknown;
     hint?: unknown;
-    details?: { species?: unknown; spotLight?: unknown };
+    details?: { species?: unknown; spotLight?: unknown; growthStage?: unknown };
   };
 
   const species =
@@ -34,6 +34,11 @@ export async function POST(req: NextRequest) {
     typeof body.details?.spotLight === "string" &&
     ["low", "medium", "bright"].includes(body.details.spotLight)
       ? (body.details.spotLight as "low" | "medium" | "bright")
+      : undefined;
+  const growthStage =
+    typeof body.details?.growthStage === "string" &&
+    ["seed", "seedling", "young", "mature"].includes(body.details.growthStage)
+      ? (body.details.growthStage as "seed" | "seedling" | "young" | "mature")
       : undefined;
 
   const hint =
@@ -65,7 +70,7 @@ export async function POST(req: NextRequest) {
       identifyPlant({
         imageBase64,
         hint,
-        details: { species, spotLight },
+        details: { species, spotLight, growthStage },
       }),
       imageBase64 ? uploadPlantPhoto(imageBase64) : Promise.resolve(null),
     ]);

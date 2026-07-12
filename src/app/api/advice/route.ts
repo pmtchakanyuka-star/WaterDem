@@ -32,6 +32,10 @@ export async function POST(req: NextRequest) {
       {
         name: p.name,
         species: p.species ?? null,
+        growth_stage:
+          p.growth_stage && ["seed", "seedling", "young", "mature"].includes(p.growth_stage)
+            ? p.growth_stage
+            : "mature",
         water_freq_days: p.water_freq_days ?? 7,
         light: p.light ?? null,
         humidity: p.humidity ?? null,

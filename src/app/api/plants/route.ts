@@ -11,6 +11,7 @@ const CARE = ["easy", "moderate", "expert"];
 const LIGHT = ["low", "medium", "bright"];
 const HUMIDITY = ["low", "medium", "high"];
 const PET = ["toxic", "mild", "safe"];
+const GROWTH = ["seed", "seedling", "young", "mature"];
 const ICON_KEYS = new Set<string>(PLANT_ICON_KEYS);
 
 function sanitize(body: Record<string, unknown>) {
@@ -47,6 +48,9 @@ function sanitize(body: Record<string, unknown>) {
     fun_facts: arr(body.fun_facts),
     pet_safety: PET.includes(body.pet_safety as string) ? (body.pet_safety as string) : null,
     pet_safety_note: str(body.pet_safety_note, 200),
+    growth_stage: GROWTH.includes(body.growth_stage as string)
+      ? (body.growth_stage as string)
+      : "mature",
   };
 }
 
@@ -73,13 +77,13 @@ export async function POST(req: NextRequest) {
         owner_id, name, species, common_name, image_url, icon_key,
         water_freq_days, care_level, light, humidity, soil_check,
         weather_note, nutrients, weekly_tips, fun_facts,
-        pet_safety, pet_safety_note, last_watered
+        pet_safety, pet_safety_note, growth_stage, last_watered
       ) values (
         ${session.userId}, ${p.name}, ${p.species}, ${p.common_name},
         ${p.image_url}, ${p.icon_key}, ${p.water_freq_days}, ${p.care_level},
         ${p.light}, ${p.humidity}, ${p.soil_check}, ${p.weather_note},
         ${p.nutrients}, ${p.weekly_tips}, ${p.fun_facts},
-        ${p.pet_safety}, ${p.pet_safety_note}, now()
+        ${p.pet_safety}, ${p.pet_safety_note}, ${p.growth_stage}, now()
       )
       returning *`;
     return normalizePlant(rows[0]);

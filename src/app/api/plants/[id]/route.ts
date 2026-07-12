@@ -44,6 +44,12 @@ const EDITABLE: Record<string, (v: unknown) => unknown | undefined> = {
   // Home-view appearance — null clears to "auto".
   plant_look: oneOfOrNull(["monstera", "fern", "palm", "banana", "cannabis", "flower"]),
   pot_look: oneOfOrNull(["twotone", "terracotta", "teal", "rasta", "sand"]),
+  // NOT NULL column: null/""/invalid input is skipped (undefined), never
+  // written as null — unlike the oneOfOrNull fields above.
+  growth_stage: (v) =>
+    typeof v === "string" && ["seed", "seedling", "young", "mature"].includes(v)
+      ? v
+      : undefined,
 };
 
 export async function PATCH(

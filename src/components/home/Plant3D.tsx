@@ -10,7 +10,7 @@ import { normalizeModel } from "@/lib/modelUtils";
 import { CLAY, CLAY_ROUGH, RASTA } from "@/lib/clay";
 import ClayCannabis from "@/components/home/ClayCannabis";
 import ClayFlower from "@/components/home/ClayFlower";
-import type { Plant, PlantLook, PotLook } from "@/lib/types";
+import type { GrowthStage, Plant, PlantLook, PotLook } from "@/lib/types";
 
 /**
  * A potted plant in the 3D home: a two-tone clay pot on a saucer holding a real
@@ -27,6 +27,37 @@ const STATUS_RING: Record<WaterStatus, string> = {
 };
 
 const TARGET_HEIGHT = 0.86;
+
+/** Foliage scale per life stage ("seed" swaps to a SeedSprout at full scale). */
+const STAGE_SCALE: Record<GrowthStage, number> = {
+  seed: 1,
+  seedling: 0.35,
+  young: 0.7,
+  mature: 1,
+};
+
+/** A germinating seed: a soil mound with one tiny sprout — replaces foliage. */
+function SeedSprout() {
+  return (
+    <group>
+      {/* soil mound */}
+      <mesh castShadow position={[0, 0.015, 0]} scale={[1, 0.45, 1]}>
+        <sphereGeometry args={[0.09, 20, 16]} />
+        <meshStandardMaterial color={CLAY.soil} roughness={1} />
+      </mesh>
+      {/* thin stem */}
+      <mesh castShadow position={[0, 0.065, 0]}>
+        <cylinderGeometry args={[0.006, 0.009, 0.06, 10]} />
+        <meshStandardMaterial color={CLAY.stem} roughness={CLAY_ROUGH.waxy} metalness={0} envMapIntensity={0.85} />
+      </mesh>
+      {/* one tiny leaf */}
+      <mesh castShadow position={[0.022, 0.1, 0]} rotation={[0, 0, -0.5]} scale={[1, 0.35, 0.6]}>
+        <sphereGeometry args={[0.035, 16, 12]} />
+        <meshStandardMaterial color={CLAY.leaf} roughness={CLAY_ROUGH.waxy} metalness={0} envMapIntensity={0.85} />
+      </mesh>
+    </group>
+  );
+}
 
 /** A two-band clay pot with a saucer and soil, coloured by look. */
 function ClayPot({
@@ -231,9 +262,16 @@ export default function Plant3D({
       {/* pot: the chosen look (Rasta by default for cannabis) */}
       <PotByLook pot={potLook} />
 
-      {/* foliage: procedural clay cannabis/flowers, or the model on the soil */}
-      <group ref={sway} position={[0, procedural ? 0.41 : 0.39, 0]}>
-        {cannabis ? (
+      {/* foliage: a seed sprout at the "seed" stage, else procedural clay
+          cannabis/flowers or the model on the soil — scaled by life stage */}
+      <group
+        ref={sway}
+        position={[0, procedural ? 0.41 : 0.39, 0]}
+        scale={STAGE_SCALE[plant.growth_stage]}
+      >
+        {plant.growth_stage === "seed" ? (
+          <SeedSprout />
+        ) : cannabis ? (
           <ClayCannabis />
         ) : flower ? (
           <ClayFlower />

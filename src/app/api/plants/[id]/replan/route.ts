@@ -50,7 +50,10 @@ export async function POST(
     const profile = await identifyPlant({
       imageBase64: plant.image_url ?? undefined,
       hint: plant.name,
-      details: { species: plant.species ?? plant.common_name ?? undefined },
+      details: {
+        species: plant.species ?? plant.common_name ?? undefined,
+        growthStage: plant.growth_stage,
+      },
     });
     if (!profile) {
       return NextResponse.json(

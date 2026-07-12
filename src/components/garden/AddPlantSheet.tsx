@@ -8,7 +8,8 @@ import GlassButton from "@/components/glass/GlassButton";
 import GlassInput from "@/components/glass/GlassInput";
 import PlantIcon from "@/components/garden/PlantIcon";
 import { useToast } from "@/components/Toast";
-import type { IdentifyResult, LightLevel, Plant } from "@/lib/types";
+import { downscaleToDataUrl } from "@/lib/image";
+import type { GrowthStage, IdentifyResult, LightLevel, Plant } from "@/lib/types";
 
 /**
  * Add-plant flow: a photo and/or whatever details the user knows (name,
@@ -28,15 +29,12 @@ const SPOT_LIGHT_OPTIONS: { value: LightLevel | ""; label: string }[] = [
   { value: "bright", label: "Bright — near a window" },
 ];
 
-async function downscaleToDataUrl(file: File, maxDim = 1024): Promise<string> {
-  const bitmap = await createImageBitmap(file);
-  const scale = Math.min(1, maxDim / Math.max(bitmap.width, bitmap.height));
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.round(bitmap.width * scale);
-  canvas.height = Math.round(bitmap.height * scale);
-  canvas.getContext("2d")!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-  return canvas.toDataURL("image/jpeg", 0.85);
-}
+const GROWTH_STAGE_OPTIONS: { value: GrowthStage; label: string }[] = [
+  { value: "seed", label: "Just a seed" },
+  { value: "seedling", label: "Seedling" },
+  { value: "young", label: "Young plant" },
+  { value: "mature", label: "Mature" },
+];
 
 export default function AddPlantSheet({
   open,
@@ -55,6 +53,7 @@ export default function AddPlantSheet({
   const [hint, setHint] = useState("");
   const [species, setSpecies] = useState("");
   const [spotLight, setSpotLight] = useState<LightLevel | "">("");
+  const [growthStage, setGrowthStage] = useState<GrowthStage>("mature");
   const [identifying, setIdentifying] = useState(false);
   const [identifyError, setIdentifyError] = useState<string | null>(null);
   const [aiUnavailable, setAiUnavailable] = useState(false);
@@ -71,6 +70,7 @@ export default function AddPlantSheet({
     setHint("");
     setSpecies("");
     setSpotLight("");
+    setGrowthStage("mature");
     setIdentifying(false);
     setIdentifyError(null);
     setAiUnavailable(false);
@@ -112,6 +112,7 @@ export default function AddPlantSheet({
           details: {
             species: species || undefined,
             spotLight: spotLight || undefined,
+            growthStage,
           },
         }),
       });
@@ -145,7 +146,8 @@ export default function AddPlantSheet({
       species: species || undefined,
       light: spotLight || undefined,
       iconKey: "sprout",
-      waterFreqDays: 7,
+      // Seeds and seedlings need near-daily moisture, not the adult weekly rhythm.
+      waterFreqDays: growthStage === "seed" || growthStage === "seedling" ? 2 : 7,
     });
     setImageUrl(null);
     setConfidence(null);
@@ -180,6 +182,7 @@ export default function AddPlantSheet({
           fun_facts: profile.funFacts,
           pet_safety: profile.petSafety,
           pet_safety_note: profile.petSafetyNote,
+          growth_stage: growthStage,
         }),
       });
       const data = await res.json();
@@ -278,6 +281,31 @@ export default function AddPlantSheet({
             <p className="text-xs text-leaf-mut">
               Brighter, warmer spots dry out faster — the botanist folds this
               into the watering schedule.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label
+              htmlFor="growth-stage"
+              className="text-sm font-medium text-leaf-2nd"
+            >
+              How far along is it?
+            </label>
+            <select
+              id="growth-stage"
+              value={growthStage}
+              onChange={(e) => setGrowthStage(e.target.value as GrowthStage)}
+              className="w-full rounded-xl border border-glass-edge bg-[rgba(255,255,255,0.05)] px-4 py-2.5 text-base text-leaf-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.10)] backdrop-blur-xl outline-none focus-visible:outline-2 focus-visible:outline-sage focus-visible:outline-offset-2 [&>option]:bg-forest-900"
+            >
+              {GROWTH_STAGE_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-leaf-mut">
+              Seeds and seedlings drink little and often — the botanist plans
+              the schedule around the stage.
             </p>
           </div>
 

@@ -9,6 +9,9 @@ export type PetSafety = "toxic" | "mild" | "safe";
 export type PlantLook = "monstera" | "fern" | "palm" | "banana" | "cannabis" | "flower";
 export type PotLook = "twotone" | "terracotta" | "teal" | "rasta" | "sand";
 
+/** Life stage of a plant — drives stage-aware AI care plans and 3D scale. */
+export type GrowthStage = "seed" | "seedling" | "young" | "mature";
+
 export type Plant = {
   id: string;
   owner_id: string;
@@ -31,6 +34,7 @@ export type Plant = {
   room: RoomKey | null;
   plant_look: PlantLook | null;
   pot_look: PotLook | null;
+  growth_stage: GrowthStage;
   is_public: boolean;
   last_watered: string | null;
   created_at: string;
@@ -80,6 +84,28 @@ export type IdentifyResult = {
 export type Advice = {
   greeting: string;
   tips: string[];
+};
+
+/** What the AI botanist returns from a health checkup. */
+export type HealthCheckResult = {
+  summary: string;
+  diagnosis: string;
+  severity: "ok" | "watch" | "act";
+  advice: string[];
+  suggestedStage: GrowthStage | null;
+};
+
+/** A stored health_checks row (owner-only history in the detail sheet). */
+export type HealthCheck = {
+  id: string;
+  image_url: string | null;
+  note: string | null;
+  severity: "ok" | "watch" | "act";
+  summary: string;
+  diagnosis: string;
+  advice: string[];
+  suggested_stage: GrowthStage | null;
+  created_at: string;
 };
 
 export type GardenShare = {
