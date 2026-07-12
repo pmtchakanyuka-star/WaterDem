@@ -44,8 +44,9 @@ export default function SignupPage() {
     nickname && !NICKNAME_RE.test(nickname)
       ? undefined
       : "3–20 letters, numbers or underscores — this is your public handle.";
-  const nicknameError =
-    nickname && !NICKNAME_RE.test(nickname)
+  const nicknameError = nickname.includes("@")
+    ? "No email addresses here — pick a handle instead, like mossboss."
+    : nickname && !NICKNAME_RE.test(nickname)
       ? "3–20 letters, numbers or underscores only."
       : availability === "taken"
         ? "That handle is taken — try another."

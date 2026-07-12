@@ -167,9 +167,12 @@ function GardenInner({
   return (
     <main className="mx-auto flex min-h-dvh max-w-5xl flex-col gap-6 px-5 py-8 sm:px-8">
       {/* header */}
-      <header className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="flex size-10 items-center justify-center rounded-2xl border border-[rgba(110,231,168,0.25)] bg-[rgba(110,231,168,0.10)]">
+      <header className="flex items-center justify-between gap-3 sm:gap-4">
+        {/* min-w-0 here too — this outer div is the header's flex item; without
+            it, min-width:auto blocks shrinking and the title never truncates,
+            overflowing the viewport on narrow phones. */}
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="hidden size-10 shrink-0 items-center justify-center rounded-2xl border border-[rgba(110,231,168,0.25)] bg-[rgba(110,231,168,0.10)] min-[400px]:flex">
             <Sprout className="size-5 text-sage" aria-hidden />
           </div>
           <div className="min-w-0">
@@ -183,7 +186,7 @@ function GardenInner({
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
           {/* Grid <-> Home view toggle */}
           <div
             role="group"
@@ -194,7 +197,7 @@ function GardenInner({
               onClick={() => switchView("grid")}
               aria-pressed={view === "grid"}
               aria-label="Grid view"
-              className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs transition-colors ${
+              className={`flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs transition-colors sm:px-3 ${
                 view === "grid"
                   ? "bg-[rgba(110,231,168,0.16)] text-sage"
                   : "text-leaf-2nd hover:text-leaf-100"
@@ -206,7 +209,7 @@ function GardenInner({
               onClick={() => switchView("home")}
               aria-pressed={view === "home"}
               aria-label="Home view"
-              className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs transition-colors ${
+              className={`flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs transition-colors sm:px-3 ${
                 view === "home"
                   ? "bg-[rgba(110,231,168,0.16)] text-sage"
                   : "text-leaf-2nd hover:text-leaf-100"

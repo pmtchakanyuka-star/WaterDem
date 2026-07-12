@@ -113,9 +113,11 @@ export default function GuidePage() {
             <ul className="mt-2 flex flex-col gap-1.5">
               <li className="flex gap-2">
                 <Leaf className="mt-0.5 size-3.5 shrink-0 text-sage" aria-hidden />
-                Feed a balanced fertiliser at <strong>half strength</strong>,
-                roughly monthly, in spring and summer — houseplants grow slower
-                than the outdoor plants the label is written for.
+                <span>
+                  Feed a balanced fertiliser at <strong>half strength</strong>,
+                  roughly monthly, in spring and summer — houseplants grow
+                  slower than the outdoor plants the label is written for.
+                </span>
               </li>
               <li className="flex gap-2">
                 <Leaf className="mt-0.5 size-3.5 shrink-0 text-sage" aria-hidden />

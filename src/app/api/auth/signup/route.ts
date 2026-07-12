@@ -41,6 +41,14 @@ export async function POST(req: NextRequest) {
   const nickname = typeof body.nickname === "string" ? body.nickname.trim() : "";
   const password = typeof body.password === "string" ? body.password : "";
 
+  // The regex below already excludes "@", but give email attempts their own
+  // clear message — people habitually type an email into the first field.
+  if (nickname.includes("@")) {
+    return NextResponse.json(
+      { error: "No email addresses — pick a handle instead, like mossboss." },
+      { status: 400 },
+    );
+  }
   if (!NICKNAME_RE.test(nickname)) {
     return NextResponse.json(
       { error: "Nicknames are 3–20 letters, numbers or underscores." },
