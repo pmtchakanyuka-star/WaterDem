@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { AiNotConfiguredError, identifyPlant } from "@/lib/ai";
 import { withUser } from "@/lib/db";
 import { getSession } from "@/lib/session";
+import { clientIp } from "@/lib/http";
+import { aiRateOk } from "@/lib/ratelimit";
 import { normalizePlant } from "@/lib/normalize";
 import type { Plant } from "@/lib/types";
 
@@ -18,13 +20,18 @@ const UUID_RE =
  * and refresh the care fields. Name, photo and visibility are untouched.
  */
 export async function POST(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const session = await getSession();
   if (!session) {
     return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   }
+
+  if (!aiRateOk(session.userId, clientIp(req))) {
+    return NextResponse.json({ error: "You're doing that a lot — please wait a minute and try again." }, { status: 429 });
+  }
+
   const { id } = await params;
   if (!UUID_RE.test(id)) {
     return NextResponse.json({ error: "Unknown plant." }, { status: 404 });

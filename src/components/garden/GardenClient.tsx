@@ -172,8 +172,8 @@ function GardenInner({
           <div className="flex size-10 items-center justify-center rounded-2xl border border-[rgba(110,231,168,0.25)] bg-[rgba(110,231,168,0.10)]">
             <Sprout className="size-5 text-sage" aria-hidden />
           </div>
-          <div>
-            <h1 className="font-display text-2xl leading-tight text-leaf-100">
+          <div className="min-w-0">
+            <h1 className="truncate font-display text-2xl leading-tight text-leaf-100">
               {nickname}&apos;s garden
             </h1>
             <p className="text-xs text-leaf-mut">
@@ -200,7 +200,7 @@ function GardenInner({
                   : "text-leaf-2nd hover:text-leaf-100"
               }`}
             >
-              <LayoutGrid className="size-3.5" aria-hidden /> Grid
+              <LayoutGrid className="size-3.5" aria-hidden /> <span className="hidden sm:inline">Grid</span>
             </button>
             <button
               onClick={() => switchView("home")}
@@ -212,7 +212,7 @@ function GardenInner({
                   : "text-leaf-2nd hover:text-leaf-100"
               }`}
             >
-              <Home className="size-3.5" aria-hidden /> Home
+              <Home className="size-3.5" aria-hidden /> <span className="hidden sm:inline">Home</span>
             </button>
           </div>
           <GlassIconLink href="/guide" label="Care basics">

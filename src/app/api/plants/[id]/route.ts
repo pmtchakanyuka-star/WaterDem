@@ -42,7 +42,7 @@ const EDITABLE: Record<string, (v: unknown) => unknown | undefined> = {
   light: oneOfOrNull(["low", "medium", "bright"]),
   humidity: oneOfOrNull(["low", "medium", "high"]),
   // Home-view appearance — null clears to "auto".
-  plant_look: oneOfOrNull(["monstera", "fern", "palm", "banana", "cannabis"]),
+  plant_look: oneOfOrNull(["monstera", "fern", "palm", "banana", "cannabis", "flower"]),
   pot_look: oneOfOrNull(["twotone", "terracotta", "teal", "rasta", "sand"]),
 };
 

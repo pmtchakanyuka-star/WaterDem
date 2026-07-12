@@ -2,13 +2,13 @@
 
 import { Component, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useReducedMotion } from "framer-motion";
-import { MonitorX, Pencil } from "lucide-react";
+import { ChevronLeft, ChevronRight, MonitorX, Pencil } from "lucide-react";
 import HomeScene from "@/components/home/HomeScene";
 import SpacePicker from "@/components/home/SpacePicker";
 import UnplacedTray from "@/components/home/UnplacedTray";
 import GlassButton from "@/components/glass/GlassButton";
 import GlassCard from "@/components/glass/GlassCard";
-import type { RoomKey } from "@/lib/home";
+import { ROOMS, type RoomKey } from "@/lib/home";
 import type { Plant } from "@/lib/types";
 
 /** True if the browser can create a WebGL context. */
@@ -63,7 +63,14 @@ export default function HomeView({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [webgl, setWebgl] = useState<boolean | null>(null);
+  // One room fills the stage at a time; arrows flip between them.
+  const [roomIndex, setRoomIndex] = useState(0);
   const firedFallback = useRef(false);
+
+  const activeIndex = Math.min(roomIndex, Math.max(0, homeSpaces.length - 1));
+  const activeRoom = homeSpaces[activeIndex];
+  const flipRoom = (dir: 1 | -1) =>
+    setRoomIndex((activeIndex + dir + homeSpaces.length) % homeSpaces.length);
 
   useEffect(() => {
     setWebgl(webglAvailable());
@@ -126,10 +133,10 @@ export default function HomeView({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="relative h-[58vh] min-h-[380px] w-full overflow-hidden rounded-3xl border border-glass-edge">
+      <div className="relative h-[58svh] min-h-[380px] w-full overflow-hidden rounded-3xl border border-glass-edge">
         <SceneErrorBoundary onError={fallback}>
           <HomeScene
-            rooms={homeSpaces}
+            rooms={activeRoom ? [activeRoom] : []}
             plants={plants}
             weatherFactor={weatherFactor}
             hoveredId={hoveredId}
@@ -153,6 +160,47 @@ export default function HomeView({
             <Pencil className="size-3.5" aria-hidden /> Rooms
           </GlassButton>
         </div>
+
+        {/* room switcher: one room on stage at a time */}
+        {homeSpaces.length > 1 && (
+          <>
+            <button
+              type="button"
+              onClick={() => flipRoom(-1)}
+              aria-label="Previous room"
+              className="glass glass-interactive absolute left-2 top-1/2 -translate-y-1/2 rounded-full p-2.5 text-leaf-100 outline-none focus-visible:outline-2 focus-visible:outline-sage"
+            >
+              <ChevronLeft className="size-5" aria-hidden />
+            </button>
+            <button
+              type="button"
+              onClick={() => flipRoom(1)}
+              aria-label="Next room"
+              className="glass glass-interactive absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-2.5 text-leaf-100 outline-none focus-visible:outline-2 focus-visible:outline-sage"
+            >
+              <ChevronRight className="size-5" aria-hidden />
+            </button>
+          </>
+        )}
+        {activeRoom && (
+          <div className="pointer-events-none absolute inset-x-0 bottom-3 flex flex-col items-center gap-1.5">
+            <span className="glass rounded-full px-3.5 py-1 text-xs font-medium text-leaf-100">
+              {ROOMS[activeRoom].label}
+            </span>
+            {homeSpaces.length > 1 && (
+              <div className="flex items-center gap-1.5" aria-hidden>
+                {homeSpaces.map((r, i) => (
+                  <span
+                    key={r}
+                    className={`size-1.5 rounded-full transition-colors ${
+                      i === activeIndex ? "bg-leaf-100" : "bg-[rgba(255,255,255,0.28)]"
+                    }`}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <UnplacedTray plants={unplaced} onOpen={select} />

@@ -104,7 +104,7 @@ export default function Sheet({
             aria-modal="true"
             aria-label={title}
             tabIndex={-1}
-            className={`glass max-h-[88vh] w-full overflow-y-auto p-6 outline-none ${wide ? "max-w-2xl" : "max-w-lg"}`}
+            className={`glass max-h-[88svh] w-full overflow-y-auto p-6 outline-none ${wide ? "max-w-2xl" : "max-w-lg"}`}
             initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 32, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 24, scale: 0.98 }}

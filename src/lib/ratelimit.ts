@@ -72,6 +72,46 @@ export function recordSuccess(nickname: string, ip: string): void {
   attempts.delete(nickKey(nickname));
 }
 
+// --- AI usage limiter: cap expensive OpenAI calls per user + per IP ---------
+// A rolling window per key. AI routes (identify/advice/replan) each require a
+// session, but nothing stopped a signed-in user from looping a route and
+// running up the OpenAI bill — this caps that. Single-instance (per serverless
+// instance) like the others; good enough for the current scale, back with a
+// shared store (Postgres/Upstash) before high traffic.
+const AI_MAX = 30; // requests
+const AI_WINDOW_MS = 5 * 60_000; // per 5 minutes, per key
+const aiHits = new Map<string, number[]>();
+
+/**
+ * Returns true if this AI request is allowed. Counts against both a per-user
+ * and a per-IP budget so neither a single account nor a single source can run
+ * the bill up. Call once per AI request; it records the hit.
+ */
+export function aiRateOk(userId: string, ip: string): boolean {
+  const now = Date.now();
+  if (aiHits.size > 5000) {
+    for (const [k, arr] of aiHits) {
+      if (arr.every((t) => t <= now - AI_WINDOW_MS)) aiHits.delete(k);
+    }
+  }
+  // Evaluate both; record on both only if both pass (avoid one-sided burn).
+  const cutoff = now - AI_WINDOW_MS;
+  const uKey = `ai:u:${userId}`;
+  const ipK = `ai:ip:${ip}`;
+  const uHits = (aiHits.get(uKey) ?? []).filter((t) => t > cutoff);
+  const ipHits = (aiHits.get(ipK) ?? []).filter((t) => t > cutoff);
+  if (uHits.length >= AI_MAX || ipHits.length >= AI_MAX) {
+    aiHits.set(uKey, uHits);
+    aiHits.set(ipK, ipHits);
+    return false;
+  }
+  uHits.push(now);
+  ipHits.push(now);
+  aiHits.set(uKey, uHits);
+  aiHits.set(ipK, ipHits);
+  return true;
+}
+
 // --- Signup limiter: cap account creation per IP to curb spam ---------------
 const SIGNUP_MAX = 8;
 const SIGNUP_WINDOW_MS = 10 * 60_000;

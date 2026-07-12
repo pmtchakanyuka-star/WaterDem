@@ -58,7 +58,7 @@ export function isCannabis(plant: Pick<Plant, "name" | "species" | "common_name"
   return /(cannabis|marijuana|\bweed\b|ganja|\bhemp\b|\bkush\b|sativa|indica|reefer|spliff|\b420\b|mary ?jane|bomboclaat|bumboclaat|rasta)/.test(hay);
 }
 
-const POOLS: Record<Exclude<PlantLook, "cannabis">, string[]> = {
+const POOLS: Record<Exclude<PlantLook, "cannabis" | "flower">, string[]> = {
   monstera: MONSTERA,
   fern: FERN,
   palm: PALM,
@@ -66,15 +66,16 @@ const POOLS: Record<Exclude<PlantLook, "cannabis">, string[]> = {
 };
 
 /**
- * The GLB node for a plant given an explicit look (from the user's choice). A
- * null/"cannabis" look falls back to species-derived selection; the caller
- * renders the procedural cannabis plant separately.
+ * The GLB node for a plant given an explicit look (from the user's choice).
+ * "cannabis" and "flower" are procedural (no GLB node) — for those, and for
+ * null (auto), fall back to species-derived selection; the caller renders the
+ * procedural plant instead of the returned node.
  */
 export function modelNodeForLook(
   plant: Pick<Plant, "id" | "name" | "species" | "common_name">,
   look: PlantLook | null,
 ): string {
-  if (look && look !== "cannabis") {
+  if (look && look !== "cannabis" && look !== "flower") {
     const pool = POOLS[look];
     return pool[hash(plant.id) % pool.length];
   }

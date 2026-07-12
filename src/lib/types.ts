@@ -6,7 +6,7 @@ export type HumidityLevel = "low" | "medium" | "high";
 export type PetSafety = "toxic" | "mild" | "safe";
 
 /** Home-view "avatar" for a plant: its look and its pot, chosen by the user. */
-export type PlantLook = "monstera" | "fern" | "palm" | "banana" | "cannabis";
+export type PlantLook = "monstera" | "fern" | "palm" | "banana" | "cannabis" | "flower";
 export type PotLook = "twotone" | "terracotta" | "teal" | "rasta" | "sand";
 
 export type Plant = {

@@ -377,7 +377,7 @@ export default function PlantDetailSheet({
                 patch({ room: e.target.value === "" ? null : e.target.value })
               }
               aria-label="Which room this plant lives in"
-              className="min-w-40 flex-1 rounded-lg border border-glass-edge bg-[rgba(255,255,255,0.05)] px-3 py-2 text-sm text-leaf-100 outline-none focus-visible:outline-2 focus-visible:outline-sage [&>option]:bg-forest-900"
+              className="min-w-40 flex-1 rounded-lg border border-glass-edge bg-[rgba(255,255,255,0.05)] px-3 py-2 text-leaf-100 outline-none focus-visible:outline-2 focus-visible:outline-sage [&>option]:bg-forest-900"
             >
               <option value="">Not in a room</option>
               {homeSpaces.map((r) => (
@@ -402,14 +402,15 @@ export default function PlantDetailSheet({
                 disabled={busy}
                 onChange={(e) => patch({ plant_look: e.target.value === "" ? null : e.target.value })}
                 aria-label="Plant look in the 3D home"
-                className="w-full rounded-lg border border-glass-edge bg-[rgba(255,255,255,0.05)] px-3 py-2 text-sm text-leaf-100 outline-none focus-visible:outline-2 focus-visible:outline-sage [&>option]:bg-forest-900"
+                className="w-full rounded-lg border border-glass-edge bg-[rgba(255,255,255,0.05)] px-3 py-2 text-leaf-100 outline-none focus-visible:outline-2 focus-visible:outline-sage [&>option]:bg-forest-900"
               >
                 <option value="">Auto (from species)</option>
                 <option value="monstera">Monstera</option>
                 <option value="fern">Fern</option>
                 <option value="palm">Palm</option>
                 <option value="banana">Banana</option>
-                <option value="cannabis">Cannabis 🌿</option>
+                <option value="cannabis">Chalice 🌿</option>
+                <option value="flower">Flowers 🌸</option>
               </select>
             </label>
             <label className="flex flex-col gap-1.5">
@@ -419,7 +420,7 @@ export default function PlantDetailSheet({
                 disabled={busy}
                 onChange={(e) => patch({ pot_look: e.target.value === "" ? null : e.target.value })}
                 aria-label="Pot look in the 3D home"
-                className="w-full rounded-lg border border-glass-edge bg-[rgba(255,255,255,0.05)] px-3 py-2 text-sm text-leaf-100 outline-none focus-visible:outline-2 focus-visible:outline-sage [&>option]:bg-forest-900"
+                className="w-full rounded-lg border border-glass-edge bg-[rgba(255,255,255,0.05)] px-3 py-2 text-leaf-100 outline-none focus-visible:outline-2 focus-visible:outline-sage [&>option]:bg-forest-900"
               >
                 <option value="">Auto</option>
                 <option value="twotone">Two-tone (teal + terracotta)</option>

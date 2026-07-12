@@ -9,6 +9,7 @@ import { MODEL_PATH, modelNodeForLook, isCannabis } from "@/lib/plantModels";
 import { normalizeModel } from "@/lib/modelUtils";
 import { CLAY, CLAY_ROUGH, RASTA } from "@/lib/clay";
 import ClayCannabis from "@/components/home/ClayCannabis";
+import ClayFlower from "@/components/home/ClayFlower";
 import type { Plant, PlantLook, PotLook } from "@/lib/types";
 
 /**
@@ -169,6 +170,8 @@ export default function Plant3D({
     [plant],
   );
   const cannabis = look === "cannabis";
+  const flower = look === "flower";
+  const procedural = cannabis || flower;
   const potLook: PotLook = plant.pot_look ?? (cannabis ? "rasta" : "twotone");
   const nodeName = useMemo(() => modelNodeForLook(plant, look), [plant, look]);
   const model = useNormalizedModel(nodeName);
@@ -228,9 +231,15 @@ export default function Plant3D({
       {/* pot: the chosen look (Rasta by default for cannabis) */}
       <PotByLook pot={potLook} />
 
-      {/* foliage: procedural clay cannabis, or the model on the soil */}
-      <group ref={sway} position={[0, cannabis ? 0.41 : 0.39, 0]}>
-        {cannabis ? <ClayCannabis /> : model && <primitive object={model} />}
+      {/* foliage: procedural clay cannabis/flowers, or the model on the soil */}
+      <group ref={sway} position={[0, procedural ? 0.41 : 0.39, 0]}>
+        {cannabis ? (
+          <ClayCannabis />
+        ) : flower ? (
+          <ClayFlower />
+        ) : (
+          model && <primitive object={model} />
+        )}
       </group>
 
       {/* soft status ring on the floor */}

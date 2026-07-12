@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { AiNotConfiguredError, identifyPlant } from "@/lib/ai";
 import { uploadPlantPhoto } from "@/lib/storage";
 import { getSession } from "@/lib/session";
-import { readJsonObject } from "@/lib/http";
+import { clientIp, readJsonObject } from "@/lib/http";
+import { aiRateOk } from "@/lib/ratelimit";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -11,6 +12,10 @@ export async function POST(req: NextRequest) {
   const session = await getSession();
   if (!session) {
     return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  }
+
+  if (!aiRateOk(session.userId, clientIp(req))) {
+    return NextResponse.json({ error: "You're doing that a lot — please wait a minute and try again." }, { status: 429 });
   }
 
   const parsed = await readJsonObject(req);
@@ -37,6 +42,13 @@ export async function POST(req: NextRequest) {
       : undefined;
   const imageBase64 =
     typeof body.imageBase64 === "string" ? body.imageBase64 : undefined;
+
+  if (typeof imageBase64 === "string" && imageBase64.length > 11_000_000) {
+    return NextResponse.json(
+      { error: "That image is too large — please use one under 8 MB." },
+      { status: 413 },
+    );
+  }
 
   if (!imageBase64 && !hint && !species) {
     return NextResponse.json(

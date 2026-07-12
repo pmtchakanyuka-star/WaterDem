@@ -164,7 +164,7 @@ export default function SplashSeedling() {
           </div>
 
           <motion.div
-            className="pointer-events-none absolute inset-x-0 bottom-10 text-center text-[11px] uppercase tracking-[0.22em] text-[rgba(240,255,252,0.8)]"
+            className="pointer-events-none absolute inset-x-0 bottom-[calc(2.5rem+env(safe-area-inset-bottom))] text-center text-[11px] uppercase tracking-[0.22em] text-[rgba(240,255,252,0.8)]"
             initial={{ opacity: 0 }}
             animate={{ opacity: 0.85 }}
             transition={{ delay: 2.6, duration: 0.8 }}
