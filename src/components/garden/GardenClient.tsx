@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
-import { BookOpen, Home, LayoutGrid, LogOut, Plus, Settings, Sprout } from "lucide-react";
+import { BookOpen, CircleHelp, Home, LayoutGrid, LogOut, Plus, Settings, Sprout } from "lucide-react";
 import GlassButton from "@/components/glass/GlassButton";
 import GlassIconLink from "@/components/glass/GlassIconLink";
 import PlantCard from "@/components/garden/PlantCard";
@@ -217,6 +217,9 @@ function GardenInner({
           </div>
           <GlassIconLink href="/guide" label="Care basics">
             <BookOpen className="size-4" aria-hidden />
+          </GlassIconLink>
+          <GlassIconLink href="/how-it-works" label="How WaterDem works">
+            <CircleHelp className="size-4" aria-hidden />
           </GlassIconLink>
           <GlassIconLink href="/settings" label="Settings">
             <Settings className="size-4" aria-hidden />

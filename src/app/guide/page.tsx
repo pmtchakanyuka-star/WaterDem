@@ -63,6 +63,12 @@ export default function GuidePage() {
         drawn from horticultural extension services and the RHS — the essentials,
         nothing overwhelming.
       </p>
+      <p className="text-xs text-leaf-mut">
+        New to the app?{" "}
+        <Link href="/how-it-works" className="text-sage hover:underline">
+          How WaterDem works →
+        </Link>
+      </p>
 
       {/* Nutrition */}
       <section id="nutrition" className="scroll-mt-6">
