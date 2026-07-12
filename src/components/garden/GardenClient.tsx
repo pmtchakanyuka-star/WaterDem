@@ -167,12 +167,11 @@ function GardenInner({
   return (
     <main className="mx-auto flex min-h-dvh max-w-5xl flex-col gap-6 px-5 py-8 sm:px-8">
       {/* header */}
-      <header className="flex items-center justify-between gap-3 sm:gap-4">
-        {/* min-w-0 here too — this outer div is the header's flex item; without
-            it, min-width:auto blocks shrinking and the title never truncates,
-            overflowing the viewport on narrow phones. */}
+      {/* On phones the controls wrap to their own row below the title, so the
+          garden name never gets squeezed out; one row again from sm up. */}
+      <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
         <div className="flex min-w-0 items-center gap-3">
-          <div className="hidden size-10 shrink-0 items-center justify-center rounded-2xl border border-[rgba(110,231,168,0.25)] bg-[rgba(110,231,168,0.10)] min-[400px]:flex">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-2xl border border-[rgba(110,231,168,0.25)] bg-[rgba(110,231,168,0.10)]">
             <Sprout className="size-5 text-sage" aria-hidden />
           </div>
           <div className="min-w-0">
@@ -186,7 +185,7 @@ function GardenInner({
             </p>
           </div>
         </div>
-        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+        <div className="flex w-full items-center justify-between gap-1.5 sm:w-auto sm:justify-end sm:gap-2">
           {/* Grid <-> Home view toggle */}
           <div
             role="group"
