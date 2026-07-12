@@ -8,7 +8,7 @@ import SpacePicker from "@/components/home/SpacePicker";
 import UnplacedTray from "@/components/home/UnplacedTray";
 import GlassButton from "@/components/glass/GlassButton";
 import GlassCard from "@/components/glass/GlassCard";
-import { ROOMS, type RoomKey } from "@/lib/home";
+import { ROOMS, SLOTS_PER_ROOM, type RoomKey } from "@/lib/home";
 import type { Plant } from "@/lib/types";
 
 /** True if the browser can create a WebGL context. */
@@ -87,10 +87,19 @@ export default function HomeView({
     onSelect(plant);
   };
 
-  const unplaced = useMemo(
-    () => plants.filter((p) => !p.room || !homeSpaces.includes(p.room)),
-    [plants, homeSpaces],
-  );
+  // Tray: plants with no room (or a room that's no longer a chosen space),
+  // plus overflow — each room renders at most SLOTS_PER_ROOM plants, in the
+  // same order HomeScene slices them (plants array order after filter), so
+  // anything beyond that would silently vanish from the scene.
+  const unplaced = useMemo(() => {
+    const out = plants.filter((p) => !p.room || !homeSpaces.includes(p.room));
+    for (const room of homeSpaces) {
+      out.push(
+        ...plants.filter((p) => p.room === room).slice(SLOTS_PER_ROOM),
+      );
+    }
+    return out;
+  }, [plants, homeSpaces]);
 
   if (webgl === null) {
     return (

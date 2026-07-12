@@ -93,46 +93,64 @@ export function coerceHomeSpaces(raw: unknown): RoomKey[] {
   return out.slice(0, MAX_SPACES);
 }
 
-export const SLOTS_PER_ROOM = 5;
+export const SLOTS_PER_ROOM = 8;
 
 /**
  * Local-space slot positions [x, y, z] within a room group. Elevated y values
- * sit a plant on a surface (shelf/counter/nightstand); y≈0 is the floor.
+ * sit a plant on a surface (shelf/counter/nightstand/tub rim/planter) at that
+ * surface's exact top height; y=0 is the floor. Hand-placed so every slot's
+ * 0.25-radius footprint clears all furniture, walls and the window sill in
+ * rooms.tsx / RoomShell.tsx, with ≥0.55 between slot centres.
  */
 export const SLOTS: Record<RoomKey, [number, number, number][]> = {
   living_room: [
-    [-1.15, 0.92, -0.95],
-    [-0.45, 0.92, -0.95],
-    [0.95, 0.0, 0.45],
-    [-1.2, 0.0, 0.95],
-    [0.35, 0.0, 1.0],
+    [-1.2, 0.9, -0.95], // shelf, left
+    [-0.55, 0.9, -0.95], // shelf, right
+    [1.35, 0.0, 0.0], // floor, beside the sofa's right arm
+    [0.3, 0.0, 1.4], // floor, front of the sofa on the rug edge
+    [-1.25, 0.0, -0.35], // floor, left wall between shelf and table
+    [1.35, 0.0, -1.05], // floor, back-right by the window
+    [-1.25, 0.0, 1.25], // floor, front-left corner
+    [-0.6, 0.0, -0.35], // floor, mid-room behind the coffee table
   ],
   kitchen: [
-    [-1.15, 1.02, -0.9],
-    [-0.45, 1.02, -0.9],
-    [0.3, 1.02, -0.9],
-    [1.1, 1.02, -0.5],
-    [0.95, 0.0, 0.85],
+    [-1.2, 0.97, -0.9], // counter, left
+    [-0.45, 0.97, -0.88], // counter, centre-left
+    [0.35, 0.97, -0.9], // counter, under the window light
+    [1.3, 0.0, -0.15], // floor, right of the counter's end
+    [-1.25, 0.0, 0.1], // floor, left wall
+    [0.0, 0.0, 1.35], // floor, front centre
+    [1.3, 0.0, 0.9], // floor, front-right
+    [-1.25, 0.0, 1.25], // floor, front-left corner
   ],
   bedroom: [
-    [-1.2, 0.62, -0.85],
-    [1.1, 0.0, -0.9],
-    [-1.2, 0.0, 0.95],
-    [0.4, 0.0, 1.0],
-    [1.1, 0.0, 0.6],
+    [-1.2, 0.5, -0.85], // nightstand top
+    [1.35, 0.0, -0.9], // floor, back-right corner behind the bed
+    [-1.25, 0.0, -0.1], // floor, left wall beside the bed
+    [0.5, 0.0, -1.05], // floor, under the window behind the headboard
+    [-1.25, 0.0, 1.3], // floor, front-left corner
+    [-0.35, 0.0, -1.1], // floor, back wall left of the window
+    [-1.25, 0.0, 0.6], // floor, left wall mid-room
+    [-0.7, 0.0, 1.4], // floor, front, past the bed's foot
   ],
   bathroom: [
-    [1.0, 0.66, -0.85],
-    [-1.2, 0.98, -0.9],
-    [-1.1, 0.0, 0.95],
-    [0.2, 0.0, 1.0],
-    [1.0, 0.0, 0.7],
+    [1.35, 0.575, -1.1], // tub rim, back corner
+    [-1.25, 0.0, -1.05], // floor, back-left corner
+    [-1.25, 0.0, -0.35], // floor, left wall beside the tub
+    [-1.2, 0.0, 0.9], // floor, beside the bath mat
+    [0.35, 0.0, 1.35], // floor, front centre
+    [1.3, 0.0, 0.15], // floor, right, in front of the tub
+    [-0.5, 0.0, 1.3], // floor, front-left past the mat
+    [1.3, 0.0, 1.2], // floor, front-right corner
   ],
   balcony: [
-    [-1.15, 0.55, -0.9],
-    [-0.35, 0.55, -0.9],
-    [0.5, 0.55, -0.9],
-    [-1.0, 0.0, 0.85],
-    [0.6, 0.0, 0.95],
+    [-1.05, 0.55, -0.9], // planter box, left
+    [-0.3, 0.55, -0.9], // planter box, centre
+    [0.5, 0.55, -0.9], // planter box, right
+    [1.35, 0.0, -0.25], // deck, right rail end past the planter
+    [-1.25, 0.0, 0.1], // deck, left wall
+    [0.4, 0.0, 0.35], // deck, centre beside the chair
+    [-1.25, 0.0, 1.3], // deck, front-left corner
+    [-0.35, 0.0, 1.35], // deck, front centre-left
   ],
 };

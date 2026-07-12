@@ -39,8 +39,8 @@ function LivingRoom() {
           {clay(CLAY.teal)}
         </RoundedBox>
       </group>
-      {/* coffee table — honey wood */}
-      <RoundedBox args={[0.7, 0.06, 0.5]} radius={0.03} smoothness={3} position={[0.95, 0.36, 0.45]} castShadow>
+      {/* coffee table — honey wood, on the rug beside the sofa's left arm */}
+      <RoundedBox args={[0.7, 0.06, 0.5]} radius={0.03} smoothness={3} position={[-0.7, 0.36, 0.3]} castShadow>
         {clay(CLAY.wood, CLAY_ROUGH.waxy)}
       </RoundedBox>
       <Shelf x={-0.8} y={0.86} z={-0.95} />
@@ -59,8 +59,9 @@ function Kitchen() {
       <RoundedBox args={[2.7, 0.06, 0.54]} radius={0.02} smoothness={3} position={[-0.15, 0.94, -0.94]} castShadow>
         {clay(CLAY.woodDeep, CLAY_ROUGH.waxy)}
       </RoundedBox>
-      {/* upper cabinets */}
-      <RoundedBox args={[2.6, 0.5, 0.3]} radius={0.05} smoothness={3} position={[-0.15, 1.6, -1.05]} castShadow>
+      {/* upper cabinets — snug against the back wall, left of the window, so
+          counter plants have headroom and the daylight stays visible */}
+      <RoundedBox args={[1.3, 0.5, 0.3]} radius={0.05} smoothness={3} position={[-0.8, 1.6, -1.36]} castShadow>
         {clay(CLAY.teal)}
       </RoundedBox>
     </group>
