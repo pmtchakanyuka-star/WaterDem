@@ -80,12 +80,45 @@ function SettingsInner({
     toast("success", loc ? `Weather set to ${loc.label}.` : "Location cleared.");
   };
 
-  const useGps = () => {
+  // Precise fix failed — fall back to the network's approximate location so
+  // the button never dead-ends. `deniedBySite` shapes the explanation.
+  const fallbackToApproximate = async (deniedBySite: boolean) => {
+    const res = await fetch("/api/geolocate").catch(() => null);
+    const data = res?.ok ? await res.json() : null;
+    setLocating(false);
+    if (data?.lat != null) {
+      await saveLocation({ lat: data.lat, lon: data.lon, label: data.label });
+      toast(
+        "info",
+        "Couldn't get a precise fix, so I used your network's approximate location — search your district below for more precision.",
+      );
+      return;
+    }
+    toast(
+      "error",
+      deniedBySite
+        ? "Location is blocked for this site — allow it in your browser (the padlock/⋮ menu), then try again."
+        : "Couldn't read your device's location — its location service may be off (check your system settings), or search your district below.",
+    );
+  };
+
+  const useGps = async () => {
     if (!navigator.geolocation) {
-      toast("error", "Your browser doesn't offer location access.");
+      void fallbackToApproximate(false);
       return;
     }
     setLocating(true);
+    // The Permissions API tells site-level state apart from OS-level failures:
+    // a "denied" grant means the SITE is blocked; "granted" + an error means
+    // the device/OS couldn't produce a fix (location service off, no GPS…).
+    let siteState: PermissionState | null = null;
+    try {
+      siteState = (
+        await navigator.permissions.query({ name: "geolocation" })
+      ).state;
+    } catch {
+      // Permissions API unavailable (older Safari) — fall through.
+    }
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         setLocating(false);
@@ -97,13 +130,9 @@ function SettingsInner({
         });
       },
       (err) => {
-        setLocating(false);
-        toast(
-          "error",
-          err.code === err.PERMISSION_DENIED
-            ? "Location is blocked for this site — allow it in your browser (the padlock/⋮ menu), then try again."
-            : "Couldn't get a fix — try again by a window, or search your area below.",
-        );
+        const deniedBySite =
+          err.code === err.PERMISSION_DENIED && siteState === "denied";
+        void fallbackToApproximate(deniedBySite);
       },
       // Default timeout is infinite (the button just hangs); high accuracy
       // asks for GPS where available instead of a coarse IP guess.
