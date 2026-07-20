@@ -9,6 +9,8 @@ export type GeocodeHit = {
   name: string;
   country: string;
   admin1?: string;
+  /** county/ward level — helps tell districts apart in big cities */
+  admin2?: string;
   latitude: number;
   longitude: number;
   /** e.g. "Tokyo, JP" — stored as users.location_label */
@@ -18,7 +20,7 @@ export type GeocodeHit = {
 export async function geocodeCity(query: string): Promise<GeocodeHit[]> {
   const url = new URL("https://geocoding-api.open-meteo.com/v1/search");
   url.searchParams.set("name", query);
-  url.searchParams.set("count", "6");
+  url.searchParams.set("count", "8");
   url.searchParams.set("language", "en");
   url.searchParams.set("format", "json");
 
@@ -30,6 +32,7 @@ export async function geocodeCity(query: string): Promise<GeocodeHit[]> {
       country_code?: string;
       country?: string;
       admin1?: string;
+      admin2?: string;
       latitude: number;
       longitude: number;
     }[];
@@ -45,6 +48,7 @@ export async function geocodeCity(query: string): Promise<GeocodeHit[]> {
         name: r.name,
         country: r.country ?? "",
         admin1: r.admin1,
+        admin2: r.admin2,
         latitude: r.latitude,
         longitude: r.longitude,
         label: code ? `${r.name}, ${code}` : r.name,

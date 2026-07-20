@@ -39,6 +39,7 @@ function SettingsInner({
   const [inviting, setInviting] = useState(false);
   const [inviteMsg, setInviteMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [copied, setCopied] = useState(false);
+  const [locating, setLocating] = useState(false);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Debounced city search via open-meteo geocoding.
@@ -84,14 +85,29 @@ function SettingsInner({
       toast("error", "Your browser doesn't offer location access.");
       return;
     }
+    setLocating(true);
     navigator.geolocation.getCurrentPosition(
-      (pos) =>
+      (pos) => {
+        setLocating(false);
+        // ~11m precision — weather models are km-scale, but exact is exact.
         saveLocation({
-          lat: Math.round(pos.coords.latitude * 1000) / 1000,
-          lon: Math.round(pos.coords.longitude * 1000) / 1000,
-          label: "My location",
-        }),
-      () => toast("error", "Couldn't read your location — try city search."),
+          lat: Math.round(pos.coords.latitude * 10000) / 10000,
+          lon: Math.round(pos.coords.longitude * 10000) / 10000,
+          label: "My exact location",
+        });
+      },
+      (err) => {
+        setLocating(false);
+        toast(
+          "error",
+          err.code === err.PERMISSION_DENIED
+            ? "Location is blocked for this site — allow it in your browser (the padlock/⋮ menu), then try again."
+            : "Couldn't get a fix — try again by a window, or search your area below.",
+        );
+      },
+      // Default timeout is infinite (the button just hangs); high accuracy
+      // asks for GPS where available instead of a coarse IP guess.
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 300_000 },
     );
   };
 
@@ -201,18 +217,23 @@ function SettingsInner({
         </p>
         <div className="relative">
           <GlassInput
-            label="City"
-            placeholder="Search a city…"
+            label="City or district"
+            placeholder="Search a city or district — e.g. Shibuya, not just Tokyo"
             value={citySearch}
             onChange={(e) => setCitySearch(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") setCityResults([]);
+            }}
             hint={searching ? "Searching…" : undefined}
           />
+          {/* Solid ground (not glass) — the buttons underneath must never
+              show through the suggestions. */}
           {cityResults.length > 0 && (
-            <ul className="glass absolute inset-x-0 top-full z-10 mt-2 flex flex-col overflow-hidden p-1.5">
+            <ul className="absolute inset-x-0 top-full z-30 mt-2 flex max-h-64 flex-col overflow-y-auto rounded-xl border border-glass-edge bg-[#0b2415] p-1.5 shadow-[0_16px_40px_rgba(0,0,0,0.55)]">
               {cityResults.map((c, i) => (
                 <li key={`${c.latitude},${c.longitude},${i}`}>
                   <button
-                    className="w-full rounded-lg px-3 py-2 text-left text-sm text-leaf-100 hover:bg-[rgba(255,255,255,0.07)]"
+                    className="w-full rounded-lg px-3 py-2 text-left text-sm text-leaf-100 hover:bg-[rgba(255,255,255,0.07)] focus-visible:bg-[rgba(255,255,255,0.07)] focus-visible:outline-none"
                     onClick={() =>
                       saveLocation({ lat: c.latitude, lon: c.longitude, label: c.label })
                     }
@@ -220,7 +241,7 @@ function SettingsInner({
                     {c.name}
                     <span className="text-leaf-mut">
                       {" "}
-                      — {[c.admin1, c.country].filter(Boolean).join(", ")}
+                      — {[c.admin2, c.admin1, c.country].filter(Boolean).join(", ")}
                     </span>
                   </button>
                 </li>
@@ -229,8 +250,9 @@ function SettingsInner({
           )}
         </div>
         <div className="flex flex-wrap gap-2.5">
-          <GlassButton variant="ghost" size="sm" onClick={useGps}>
-            <LocateFixed className="size-4" aria-hidden /> Use my location
+          <GlassButton variant="ghost" size="sm" onClick={useGps} loading={locating}>
+            <LocateFixed className="size-4" aria-hidden />
+            {locating ? "Getting a precise fix…" : "Use my exact location"}
           </GlassButton>
           {locationLabel && (
             <GlassButton variant="ghost" size="sm" onClick={() => saveLocation(null)}>
