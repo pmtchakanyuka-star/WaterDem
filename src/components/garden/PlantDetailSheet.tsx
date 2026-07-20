@@ -11,6 +11,7 @@ import {
   EyeOff,
   FlaskConical,
   HeartPulse,
+  ImageUp,
   Lightbulb,
   MapPin,
   Palette,
@@ -168,6 +169,7 @@ export default function PlantDetailSheet({
 }) {
   const { toast } = useToast();
   const healthFileRef = useRef<HTMLInputElement>(null);
+  const healthCameraRef = useRef<HTMLInputElement>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [editing, setEditing] = useState(false);
   const [edits, setEdits] = useState<Edits | null>(null);
@@ -796,8 +798,9 @@ export default function PlantDetailSheet({
                 </>
               )}
             </button>
-            {/* No `capture` attribute — the native picker must offer the
-                gallery as well as the camera. */}
+            {/* Two inputs on purpose: `capture` forces the camera and hides
+                the gallery, and its absence does the reverse on some Androids
+                — so each explicit button gets its own input. */}
             <input
               ref={healthFileRef}
               type="file"
@@ -805,6 +808,32 @@ export default function PlantDetailSheet({
               hidden
               onChange={pickHealthPhoto}
             />
+            <input
+              ref={healthCameraRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              hidden
+              onChange={pickHealthPhoto}
+            />
+            <div className="flex gap-2.5">
+              <GlassButton
+                variant="ghost"
+                size="sm"
+                className="flex-1"
+                onClick={() => healthCameraRef.current?.click()}
+              >
+                <Camera className="size-4" aria-hidden /> Take photo
+              </GlassButton>
+              <GlassButton
+                variant="ghost"
+                size="sm"
+                className="flex-1"
+                onClick={() => healthFileRef.current?.click()}
+              >
+                <ImageUp className="size-4" aria-hidden /> Upload
+              </GlassButton>
+            </div>
 
             <GlassInput
               label="What worries you?"

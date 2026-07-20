@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import Image from "next/image";
-import { Camera, Droplet, Sparkles, Sprout } from "lucide-react";
+import { Camera, Droplet, ImageUp, Sparkles, Sprout } from "lucide-react";
 import Sheet from "@/components/garden/Sheet";
 import GlassButton from "@/components/glass/GlassButton";
 import GlassInput from "@/components/glass/GlassInput";
@@ -47,6 +47,7 @@ export default function AddPlantSheet({
 }) {
   const { toast } = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
 
   const [step, setStep] = useState<Step>("capture");
   const [photo, setPhoto] = useState<string | null>(null);
@@ -232,9 +233,9 @@ export default function AddPlantSheet({
               </>
             )}
           </button>
-          {/* No `capture` attribute — that forces the camera on mobile and
-              hides the gallery. Without it the native picker offers both
-              "take photo" and "choose from library". */}
+          {/* Two inputs on purpose: `capture` forces the camera and hides the
+              gallery, and its absence does the reverse on some Androids — so
+              each explicit button gets its own input. */}
           <input
             ref={fileRef}
             type="file"
@@ -242,6 +243,30 @@ export default function AddPlantSheet({
             hidden
             onChange={pickPhoto}
           />
+          <input
+            ref={cameraRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            hidden
+            onChange={pickPhoto}
+          />
+          <div className="flex gap-2.5">
+            <GlassButton
+              variant="ghost"
+              className="flex-1"
+              onClick={() => cameraRef.current?.click()}
+            >
+              <Camera className="size-4" aria-hidden /> Take photo
+            </GlassButton>
+            <GlassButton
+              variant="ghost"
+              className="flex-1"
+              onClick={() => fileRef.current?.click()}
+            >
+              <ImageUp className="size-4" aria-hidden /> Upload
+            </GlassButton>
+          </div>
 
           <GlassInput
             label="What do you call it?"
